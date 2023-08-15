@@ -72,7 +72,6 @@ RUN git clone https://github.com/begeospatial/seams-app.git
 # Create data to link with data volume
 RUN mkdir -p /home/seams-app-user/seams-app/seams_app/data && chown -R seams-app-user:seams-app-group /home/seams-app-user/seams-app/seams_app/data && chmod -R 777 /home/seams-app-user/seams-app/seams_app/data
 
-RUN mkdir  /home/seams-app-user/sgu-seams-app/.streamlit/
 COPY ./.streamlit/  /home/seams-app-user/seams-app/.streamlit/
 
 # Run Streamlit app
