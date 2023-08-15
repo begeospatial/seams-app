@@ -4,7 +4,7 @@ import shutil
 from bgstools.io import get_available_services, create_directory_list, check_directory_exist_and_writable, path_exists
 from bgstools.stt import build_activities_menu
 from bgstools.io import load_toml_variables, create_subdirectory, create_new_directory
-from sgu_seams_app.datastore_utils import update_DATASTORE
+from seams_app.datastore_utils import update_DATASTORE
 
 # --------------------
 st.set_page_config(

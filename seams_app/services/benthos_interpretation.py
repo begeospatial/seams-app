@@ -8,11 +8,11 @@ import traceback
 
 from bgstools.stt import toggle_button
 
-from sgu_seams_app.seafloor import substrates, phytobenthosCommonTaxa, \
+from seams_app.seafloor import substrates, phytobenthosCommonTaxa, \
 STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAXONS
-from sgu_seams_app.services.survey_init import load_datastore
-from sgu_seams_app.markers import create_bounding_box, markers_grid, floating_marker 
-from sgu_seams_app.custom_options import SGU_custom_options
+from seams_app.services.survey_init import load_datastore
+from seams_app.markers import create_bounding_box, markers_grid, floating_marker 
+from seams_app.custom_options import SGU_custom_options
 
 
 class Status(Enum):
