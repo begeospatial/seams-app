@@ -1,0 +1,79 @@
+ARG USER_ID
+ARG GROUP_ID=1000
+# Use python-slim as base image
+FROM python:3.11-slim
+
+ENV TZ 'Europe/Stockholm'
+# Set timezone and locale
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+# Set the PYTHONPATH environmental variable
+ENV PYTHONPATH=/home/seams-app-user/seams-app
+
+RUN echo $TZ > /etc/timezone && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    locales \
+    tzdata && \
+    rm /etc/localtime && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    ffmpeg libsm6 libxext6 \
+    libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
+    libxvidcore-dev libx264-dev libffi-dev\
+    python3 python3-dev libgraphviz-dev \
+    xdot python3-setuptools \
+    python3-pip libgdal-dev \
+    gcc xmlsec1 python3-magic cron \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip
+
+# Update C env vars so compiler can find gdal
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+
+# GDAL environment variables
+ENV GDAL_DATA=/usr/share/gdal
+ENV GDAL_DRIVER_PATH=/usr/lib/gdalplugins
+
+# Install GDAL
+RUN pip install GDAL==$(gdal-config --version) --global-option=build_ext --global-option="-I/usr/include/gdal"
+
+# Install gitpython
+RUN pip install gitpython
+
+# Install Python dependencies
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir --requirement /tmp/requirements.txt
+
+# Expose port for Streamlit
+EXPOSE 8501 8502
+
+# Create a new user 'seams-app-user'
+RUN groupadd -r seams-app-group && useradd -r -g seams-app-group -u 1000 -ms /bin/bash seams-app-user
+
+
+# Change to non-root user
+USER seams-app-user
+
+WORKDIR /home/seams-app-user/
+RUN git clone https://github.com/begeospatial/seams-app.git
+
+# Create data to link with data volume
+RUN mkdir -p /home/seams-app-user/seams-app/seams_app/data && chown -R seams-app-user:seams-app-group /home/seams-app-user/seams-app/seams_app/data && chmod -R 777 /home/seams-app-user/seams-app/seams_app/data
+
+RUN mkdir  /home/seams-app-user/sgu-seams-app/.streamlit/
+COPY ./.streamlit/  /home/seams-app-user/seams-app/.streamlit/
+
+# Run Streamlit app
+CMD ["streamlit", "run", "/home/seams-app-user/seams-app/seams_app/app.py"]

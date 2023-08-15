@@ -1,0 +1,24 @@
+- colname: siteName
+  dtype: str
+  description: Name of the site or station, must be unique for the Survey
+- colname: decimalLatitude
+  dtype: float
+  unit: decimal degrees
+  description: Latitude in decimal degrees of the site or station
+- colname: decimalLongitude
+  dtype: float
+  unit: decimal degrees
+  description: Longitude in decimal degrees of the site or station
+- colname: geodeticDatum
+  dtype: str
+  description: Geodetic datum of the latitude and longitude coordinates, default is epsg:4326 as geodetic datum
+- colname: countryCode
+  dtype: str
+  description: Country code of the site or station, default is SVE for Sweden
+- colname: eventDate
+  dtype: str
+  description: Date and time of the event, default is the date of the sampling event, format YYYY-MM-DD
+- colname: measurementType__maximum_depth_in_meters
+  dtype: float
+  unit: meters
+  description: Maximum depth in meters of the site or station. A measurementType__maximum_depth_in_meters column is required in the measurement table if this column is used.

@@ -1,0 +1,4 @@
+[DTYPES]
+STATION_CORE_COLUMNS_DTYPES = "station_core_columns_dtypes.yaml"
+STATION_MEASUREMENT_COLUMNS_DTYPES = "station_measurement_columns_dtypes.yaml"
+VIDEO_CORE_COLUMNS_DTYPES = "video_core_columns_dtypes.yaml"

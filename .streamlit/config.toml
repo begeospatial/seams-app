@@ -1,0 +1,6 @@
+[server]
+maxUploadSize = 512
+enableStaticServing = true
+
+[runner]
+enforceSerializableSessionState = true

@@ -1,0 +1,6 @@
+- colname: siteName
+  dtype: str
+  description: Name of the site or station, must be unique for the Survey
+- colname: fileName
+  dtype: str
+  description: Name of the video file MP4, encoding H264 (without path)

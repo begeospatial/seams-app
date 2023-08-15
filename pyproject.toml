@@ -1,0 +1,29 @@
+# poetry update
+# poetry export --without-hashes --format=requirements.txt > requirements.txt 
+# twine upload -r pypi dist/*
+
+[tool.poetry]
+name = "sgu-seams-app"
+version = "1.0.2.1"
+description = "Sveriges Geologiska Undersökning (SGU) - SEafloor Annotation and Mapping Support"
+authors = ["Be GeoSpatial AB <sgu.seams.app@begeospatial.com>"]
+readme = "README.md"
+packages = [{include = "sgu_seams_app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+streamlit = "^1.23.1"
+opencv-python = "^4.7.0.72"
+pyyaml = "^6.0"
+ffmpeg-python = "^0.2.0"
+st-files-connection = {git = "https://github.com/streamlit/files-connection", rev = "main"}
+matplotlib = "^3.7.1"
+chardet = "^5.1.0"
+fsspec = "^2023.6.0"
+shapely = "^2.0.1"
+bgstools = "^0.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,9 @@
+- colname: measurementType__salinity_in_psu
+  measurement_type: salinity_in_psu
+  dtype: float
+  unit: psu
+  description: Salinity in Practical Salinity Units (PSU)
+- colname: measurementType__secchi_depth_in_meters
+  dtype: float
+  unit: meters
+  description: Secchi depth in meters

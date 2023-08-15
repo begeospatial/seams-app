@@ -1,0 +1,14 @@
+# services for multipage streamlit app
+# version: 0.1
+# created_on: 2022-09-01
+# maintainer: José Beltrán - Be GeoSpatial
+
+- 
+  name: '(1) Survey initialization'
+  description: 'Surveys initialization'
+  url: "survey_init.py"
+
+- 
+  name: "(2) Benthos interpretation"
+  description: "Benthos image interpretation"
+  url: "benthos_interpretation.py"
