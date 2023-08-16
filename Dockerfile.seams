@@ -75,5 +75,6 @@ RUN mkdir -p /home/seams-app-user/seams-app/seams_app/data && chown -R seams-app
 
 COPY ./.streamlit/  /home/seams-app-user/seams-app/.streamlit/
 
+
 # Run Streamlit app
 CMD ["streamlit", "run", "/home/seams-app-user/seams-app/seams_app/app.py"]
