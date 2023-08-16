@@ -1,4 +1,4 @@
 [LOGOS]
-LOGO_SIDEBAR_URL = "seams_app/static/logos/sgu-logotype-blue-eng-489.png"
-LOGO_ODF_URL = "seams_app/static/logos/ODF-logo.png"
-LOGO_BEGEOSPATIAL = "seams_app/static/logos/Logo_BeGeoSpatial_black_landscape.png"
+LOGO_SIDEBAR_URL = "sgu-logotype-blue-eng-489.png"
+LOGO_ODF_URL = "ODF-logo.png"
+LOGO_BEGEOSPATIAL = "Logo_BeGeoSpatial_black_landscape.png"

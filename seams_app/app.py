@@ -42,6 +42,9 @@ def init_session_state(default_data_subdirectory_name:str ='data', reset_session
 
     # --------------------
     APP_DIRPATH = get_script_path()
+    LOGOS_DIRPATH = os.path.join(APP_DIRPATH,'static', 'logos')
+    st.session_state['LOGOS_DIRPATH'] = LOGOS_DIRPATH
+
     DATA_DIRPATH =  os.path.join(APP_DIRPATH, default_data_subdirectory_name)
     if check_directory_exist_and_writable(DATA_DIRPATH):
         st.session_state['APP']['CONFIG']['DATA_DIRPATH'] = DATA_DIRPATH
@@ -119,9 +122,10 @@ def delete_subdirectory_with_confirmation(directory_path: str, btn_label: str = 
 def build_sidebar():
     
     logos = load_logos()
-    LOGO_SIDEBAR_URL = logos['LOGOS']['LOGO_SIDEBAR_URL']
-    LOGO_ODF_URL = logos['LOGOS']['LOGO_ODF_URL']
-    LOGO_BEGEOSPATIAL = logos['LOGOS']['LOGO_BEGEOSPATIAL']
+    LOGOS_DIRPATH = st.session_state['LOGOS_DIRPATH']
+    LOGO_SIDEBAR_URL = os.path.join(LOGOS_DIRPATH, logos['LOGOS']['LOGO_SIDEBAR_URL'])
+    LOGO_ODF_URL = os.path.join(LOGOS_DIRPATH, logos['LOGOS']['LOGO_ODF_URL'])
+    LOGO_BEGEOSPATIAL = os.path.join(LOGOS_DIRPATH, logos['LOGOS']['LOGO_BEGEOSPATIAL'])
 
     if LOGO_SIDEBAR_URL: st.sidebar.image(
             LOGO_SIDEBAR_URL, 
