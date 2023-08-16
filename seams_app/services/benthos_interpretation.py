@@ -287,6 +287,35 @@ def display_grid(grid, disable_dotpoints:list = [])->dict:
     return dotpoints_selected_dict
 
 
+def reset_dotpoints(
+        dotpoint_grid_ids:dict, 
+        dotpoints_done:dict, 
+        SURVEY_DATA:dict, 
+        FRAME_INTERPRETATION:dict, 
+        SURVEY_DATASTORE:dict, 
+        key:str):
+    dotpoints = FRAME_INTERPRETATION['DOTPOINTS']
+
+    with st.form(key=f'{key}', clear_on_submit=True):
+        reset_dotpoints = st.multiselect(
+            label='**dotpoints to reset**', 
+            options=[str(i) for i in dotpoint_grid_ids.keys()])
+        
+        reset = st.form_submit_button(label='reset')
+        if reset:            
+            counter = 0
+            if len(reset_dotpoints) > 0:
+                for dotpoint in reset_dotpoints:
+                    counter += 1                    
+                    del dotpoint_grid_ids[int(dotpoint)]
+                    del dotpoints_done[int(dotpoint)]
+                    del dotpoints[int(dotpoint)]
+                    SURVEY_DATASTORE.storage_strategy.data = SURVEY_DATA
+                    SURVEY_DATASTORE.store_data(data=SURVEY_DATA)
+            st.experimental_rerun()        
+            #return dotpoints_done, FRAME_INTERPRETATION
+
+"""
 def reset_dotpoints(dotpoint_grid_ids:dict, FRAME_INTERPRETATION:dict, key:str):
     #dotpoints_done = FRAME_INTERPRETATION.get('DOTPOINTS_DONE', {})
     #dotpoints = FRAME_INTERPRETATION['DOTPOINTS']
@@ -306,7 +335,7 @@ def reset_dotpoints(dotpoint_grid_ids:dict, FRAME_INTERPRETATION:dict, key:str):
                     counter += 1
                 return FRAME_INTERPRETATION
                 #st.experimental_rerun()
-
+"""
 def create_markers_grid(FRAME_NAME:str, DOTPOINTS_ADVANCED_OPTIONS:dict, bbox:tuple):
     centroids = markers_grid(                                
         bbox, 
@@ -473,9 +502,12 @@ def frame_dashboard(
         
             if len(dotpoints_selected_dict) > 10:
                 st.warning(f'You can only select up to 10 dotpoints. Deselect one or more dotpoints to proceed.')
-                FRAME_INTERPRETATION = reset_dotpoints(
+                reset_dotpoints(
                     key='too_many_dotpoints',
-                    dotpoint_grid_ids=dotpoints_selected_dict, 
+                    dotpoint_grid_ids=dotpoints_selected_dict,
+                    dotpoints_done=dotpoints_done,
+                    SURVEY_DATA=SURVEY_DATA,
+                    SURVEY_DATASTORE=SURVEY_DATASTORE,          
                     FRAME_INTERPRETATION=FRAME_INTERPRETATION,
                     )
     
@@ -600,9 +632,12 @@ def frame_dashboard(
             confirm = st.button(label='confirm')
             
             with st.expander(label='**Reset dotpoints**', expanded=False):
-                FRAME_INTERPRETATION = reset_dotpoints(
+                reset_dotpoints(
                     key='reset_dotpoints',
                     dotpoint_grid_ids=dotpoints_selected_dict, 
+                    dotpoints_done=dotpoints_done,
+                    SURVEY_DATA=SURVEY_DATA,
+                    SURVEY_DATASTORE=SURVEY_DATASTORE,
                     FRAME_INTERPRETATION=FRAME_INTERPRETATION,
                     )
 
@@ -613,6 +648,7 @@ def frame_dashboard(
                 if len(_taxons) == 0:
                     st.warning('**Taxa** is not selected')
                 else:
+                                        
                     DOTPOINTS_DONE = {k:True for k in FRAME_INTERPRETATION['DOTPOINTS'].keys() if len(FRAME_INTERPRETATION['DOTPOINTS'][k]) >0}
                     FRAME_INTERPRETATION['DOTPOINTS_DONE'] = DOTPOINTS_DONE
                     st.session_state['dotpoints_done'] = DOTPOINTS_DONE
