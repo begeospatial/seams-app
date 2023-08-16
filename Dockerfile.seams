@@ -1,3 +1,4 @@
+# docker build -t begeospatial/seams-app -f Dockerfile.seams .
 ARG USER_ID
 ARG GROUP_ID=1000
 # Use python-slim as base image
