@@ -8,9 +8,12 @@ Whether you are a geologist, marine scientist, or environmental researcher, the 
 
 ## Features
 
-- Streamlined annotation and mapping of seafloor images and video
-- User-friendly interface for easy interpretation and analysis
+- Streamlined annotation and mapping of seafloor images and video for Nordic aquatic ecosystems, specially Sweden.
 - Efficient marking, classification, and measurement of features of interest
+- User-friendly interface for easy interpretation and analysis- 
+- Reduced navigation screens with image overlay: Dot points overlay directly on exported video frames for seafloor interpretation with custom dot points creation with randomization over the video frames.
+- Direct view of frame results while performing the seafloor interpretation. 
+- Point intercept tagging of the image, with possibility to extend the seafloor annotations using image segmentation methods, like the segment anything model.
 - Developed and maintained by Be GeoSpatial AB
 - Ordered by the Sveriges Geologiska Undersokning (SGU)
 
@@ -26,3 +29,28 @@ The SEAMS App was developed in Sweden with love at Be GeoSpatial. Be GeoSpatial'
 ## Cite
 
 Beltran-Abaunza, J.M., Kågesten, G., Edbom Blomstrand, C., Freire, F. (2023). SEafloor Annotation and Mapping Support (SEAMS) App [Source code]. Be GeoSpatial AB & Sveriges Geologiska Undersokning (SGU). GitHub. Retrieved from https://github.com/begeospatial/seams-app
+
+
+## Disclamer
+
+PLEASE READ THIS DISCLAIMER CAREFULLY BEFORE USING THE SEAMS APP
+
+General Information: The SEAMS app (hereinafter referred to as the "App"), accessible from GitHub, is provided "AS IS" and with all faults. The developers and contributors of the App make no representations or warranties of any kind concerning the accuracy, completeness, suitability, reliability, or utility of the information provided within the App.
+
+No Professional Advice: The App is designed to provide general information and does not provide any form of professional advice or recommendations. Users are advised to seek professional guidance before taking any action based on the information provided by the App.
+
+Limitation of Liability: Under no circumstance shall Be GeoSpatial AB, the developers, contributors, GitHub or Docker be liable for any indirect, incidental, consequential, special or exemplary damages or any damages whatsoever, arising from the use or performance of the App, even if previously advised of the possibility of such damages.
+
+External Links: The App might contain links to external sites. These links are provided for convenience only, and their inclusion does not imply endorsement by the developers or contributors of the App. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party sites or services.
+
+Updates & Maintenance: The developers and contributors are under no obligation to update, maintain, or continue offering the App. The App may be subject to periodic changes, updates, or discontinuation without prior notice.
+
+Data & Privacy: The App does not guarantee the confidentiality or privacy of any communication or information transmitted. Users are responsible for protecting their own data and privacy while using the App.
+
+Open Source Nature: Given the open-source nature of the App, any modifications, adaptations, or changes made by third parties are not the responsibility of the original developers or contributors.
+
+Indemnification: By using the App, you agree to indemnify and hold harmless the developers, contributors, and GitHub from any claim, demand, damage, liability, or expense arising out of or relating to your use or misuse of the App.
+
+Jurisdiction & Governing Law: This disclaimer and the relationship between the user and the developers or contributors of the App shall be governed by and construed in accordance with the laws of the jurisdiction in which the primary developer is based, without regard to its conflict of law provisions.
+
+By using the SEAMS App, you acknowledge and agree to the terms set out in this disclaimer. If you do not agree with any part of this disclaimer, please refrain from using the App.
