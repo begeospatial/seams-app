@@ -39,7 +39,7 @@ General Information: The SEAMS app (hereinafter referred to as the "App"), acces
 
 No Professional Advice: The App is designed to provide general information and does not provide any form of professional advice or recommendations. Users are advised to seek professional guidance before taking any action based on the information provided by the App.
 
-Limitation of Liability: Under no circumstance shall Be GeoSpatial AB, the developers, contributors, GitHub or Docker be liable for any indirect, incidental, consequential, special or exemplary damages or any damages whatsoever, arising from the use or performance of the App, even if previously advised of the possibility of such damages.
+Limitation of Liability: Under no circumstance shall Be GeoSpatial AB, the Geological Survey of Sweden (SGU), the Ocean Data Factory Sweden, the developers, contributors, GitHub or Docker be liable for any indirect, incidental, consequential, special or exemplary damages or any damages whatsoever, arising from the use or performance of the App, even if previously advised of the possibility of such damages.
 
 External Links: The App might contain links to external sites. These links are provided for convenience only, and their inclusion does not imply endorsement by the developers or contributors of the App. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party sites or services.
 
@@ -49,7 +49,7 @@ Data & Privacy: The App does not guarantee the confidentiality or privacy of any
 
 Open Source Nature: Given the open-source nature of the App, any modifications, adaptations, or changes made by third parties are not the responsibility of the original developers or contributors.
 
-Indemnification: By using the App, you agree to indemnify and hold harmless the developers, contributors, and GitHub from any claim, demand, damage, liability, or expense arising out of or relating to your use or misuse of the App.
+Indemnification: By using the App, you agree to indemnify and hold harmless the maintainers, Be GeoSpatial AB, the Geological Survey of Sweden (SGU), the Ocean Data Factory Sweden, the developers, contributors, and GitHub from any claim, demand, damage, liability, or expense arising out of or relating to your use or misuse of the App.
 
 Jurisdiction & Governing Law: This disclaimer and the relationship between the user and the developers or contributors of the App shall be governed by and construed in accordance with the laws of the jurisdiction in which the primary developer is based, without regard to its conflict of law provisions.
 
