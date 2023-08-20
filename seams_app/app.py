@@ -15,10 +15,36 @@ st.set_page_config(
     )
 
 def get_script_path():
+    """
+    Retrieves the directory path of the currently executing script.
+
+    Returns:
+    str: The absolute directory path of the current script.
+    
+    Note:
+    This function makes use of the `os.path` module to get the directory of the script in which it resides. 
+    This can be useful for relative file operations or when the script's directory serves as a reference point.
+    """
     return os.path.dirname(os.path.realpath(__file__))
 
-def init_session_state(default_data_subdirectory_name:str ='data', reset_session_state:bool = False):
 
+def init_session_state(default_data_subdirectory_name:str ='data', reset_session_state:bool = False):
+    """
+    Initializes and populates the Streamlit session state for managing application state across interactions. 
+    This function ensures that specific keys are present in the session state.
+
+    Parameters:
+    - default_data_subdirectory_name (str, optional): Name of the default subdirectory where the data resides. 
+      Defaults to 'data'.
+    - reset_session_state (bool, optional): If True, the session state will be reset. Defaults to False.
+
+    Returns:
+    bool: True if initialization was successful and all required directories and files were found, otherwise False.
+
+    Note:
+    This function is mainly used at the start of the application to ensure a consistent state, 
+    and is crucial for managing how data is handled and displayed throughout the application.
+    """
     if 'APP' not in st.session_state or reset_session_state:
         st.session_state['APP'] = {}
     if 'CONFIG' not in st.session_state['APP']:
@@ -55,10 +81,7 @@ def init_session_state(default_data_subdirectory_name:str ='data', reset_session
     SURVEYS_DIRPATH = create_subdirectory(DATA_DIRPATH, 'SURVEYS')
     if SURVEYS_DIRPATH:
         st.session_state['APP']['CONFIG']['SURVEYS_DIRPATH'] = SURVEYS_DIRPATH
-
-
     # --------------------
-    
     CONFIG_DIRPATH = os.path.join(APP_DIRPATH,'config')
     if path_exists(CONFIG_DIRPATH, 'local'):
         st.session_state['APP']['CONFIG']['CONFIG_DIRPATH'] = CONFIG_DIRPATH
@@ -75,6 +98,18 @@ def init_session_state(default_data_subdirectory_name:str ='data', reset_session
 
 st.cache_data()
 def load_logos():
+    """
+    Loads logo paths from a TOML configuration file.
+
+    Returns:
+    dict: A dictionary containing paths to logos as defined in the TOML file.
+
+    Note:
+    The function relies on a configuration file named 'logos.toml' which is expected to be located in 
+    the 'config' subdirectory of the main application directory. This TOML file contains paths to various 
+    logo images used throughout the application. The function uses caching via `st.cache_data()` to ensure 
+    efficient loading of the logos without unnecessary file reads on every invocation.
+    """
 
     CONFIG_DIRPATH = get_script_path()
     LOGOS_FILEPATH = os.path.join(CONFIG_DIRPATH,'config/logos.toml')
@@ -83,11 +118,20 @@ def load_logos():
 
 def delete_subdirectory_with_confirmation(directory_path: str, btn_label: str = "Delete Subdirectory"):
     """
-    Deletes a subdirectory with all its elements, showing a warning message with confirmation.
+    Deletes a subdirectory after obtaining a confirmation from the user via the UI.
 
     Parameters:
-    - directory_path: The path of the subdirectory to be deleted.
+    - directory_path (str): The path of the subdirectory to be deleted.
+    - btn_label (str, optional): Label of the button that triggers the delete action. Defaults to "Delete Subdirectory".
 
+    Returns:
+    bool: True if the directory was successfully deleted, False otherwise.
+
+    Note:
+    The function first prompts the user for confirmation to delete the specified directory. Upon receiving 
+    confirmation, the directory and its contents are deleted. Messages are displayed to the user to indicate 
+    success or failure of the deletion process. Additionally, certain session state variables are reset 
+    upon successful deletion.
     """
     if directory_path:
             
@@ -120,6 +164,21 @@ def delete_subdirectory_with_confirmation(directory_path: str, btn_label: str = 
 
 
 def build_sidebar():
+    """
+    Constructs the sidebar for the Streamlit application.
+
+    Details:
+    The function performs the following main tasks:
+    - Loads logos from a predefined path and displays the main logo on the sidebar.
+    - Defines paths for the application's services and related directories.
+    - Creates an expandable section titled 'SEAMS - PLAN SUBSIM' containing details about the application.
+    - Provides a refresh button that clears all data caches and reruns the application.
+    - Loads a list of available services (activities) from a specified YAML file and constructs a clickable menu for these services.
+
+    Note:
+    The function makes use of various Streamlit functions such as st.sidebar.image(), st.sidebar.expander(), and st.sidebar.button() 
+    to generate the sidebar layout. 
+    """
     
     logos = load_logos()
     LOGOS_DIRPATH = st.session_state['LOGOS_DIRPATH']
@@ -132,7 +191,6 @@ def build_sidebar():
             #width=150,
             caption= 'SEafloor Annotation and Mapping Support (SEAMS)'
             )
-
 
     # Load the available services
     SERVICES_FILEPATH = os.path.join(get_script_path(),'app_services.yaml')
@@ -150,11 +208,9 @@ def build_sidebar():
         if LOGO_ODF_URL: st.image(LOGO_ODF_URL)
 
         with st.container():
-            st.divider()
-       
+            st.divider()       
             st.markdown(""" <div style='text-align:center'> SEAMS-app mantained by:</div>""", unsafe_allow_html=True)
             st.image(LOGO_BEGEOSPATIAL)
-
     
     refresh_button = st.sidebar.button("Refresh")
     if refresh_button:
@@ -174,19 +230,75 @@ def build_sidebar():
             services_dirpath=os.path.abspath(SERVICES_DIRPATH),
             disabled=False
             )
+    # --------------------
    
 
-
-
 def get_filename_from_filepath(path: str):
+    """
+    Extracts the filename from a given file path.
+
+    Parameters:
+    - path (str): The full file path from which the filename needs to be extracted.
+
+    Returns:
+    - str: The extracted filename from the provided path.
+
+    Examples:
+    >>> get_filename_from_filepath("/home/user/documents/file.txt")
+    'file.txt'
+
+    >>> get_filename_from_filepath("/home/user/documents/folder/")
+    'folder'
+
+    Note:
+    The function uses os.path.basename() and os.path.normpath() to extract the filename or the last directory name from the path.
+    """
     return os.path.basename(os.path.normpath(path))
 
+
 def get_dirpath_from_filepath(path: str):
+    """
+    Extracts the directory path from a given file or directory path.
+
+    Parameters:
+    - path (str): The full file or directory path from which the parent directory path needs to be extracted.
+
+    Returns:
+    - str: The parent directory path of the provided path.
+
+    Examples:
+    >>> get_dirpath_from_filepath("/home/user/documents/file.txt")
+    '/home/user/documents'
+
+    >>> get_dirpath_from_filepath("/home/user/documents/folder/")
+    '/home/user/documents'
+
+    Note:
+    The function uses os.path.dirname() to extract the parent directory path from the given path.
+    """
     return os.path.dirname(path)
 
 
-
 def new_survey():
+    """
+    Create a new survey directory and associated files for the user.
+
+    Workflow:
+    1. Takes input for the survey name.
+    2. Checks for uniqueness and sanitizes the survey name.
+    3. Constructs the required directory and file paths for the new survey.
+    4. Checks if a survey of the given name already exists.
+    5. If not, it creates the necessary directories and files for the new survey.
+    6. Initializes the session state with the new survey's details.
+    7. Updates the data store with the session state details.
+    8. Alerts the user upon successful creation or in case the survey name already exists.
+
+    Streamlit UI Elements:
+    - Input: Takes a string input for the survey name.
+    - Buttons: 
+        1. A form submission button to initiate the survey creation.
+    - Feedback: Provides feedback to the user on the status of the creation.
+    """
     with st.container():        
         with st.form(key='new_survey_datafile', clear_on_submit=True):
             SURVEY_NAME = st.text_input(
@@ -229,11 +341,43 @@ def new_survey():
                     st.error(f'Survey **{SURVEY_NAME}** already exists. Please, choose another name.')                   
 
 def remove_session_state(session_state_keys: list):
+    """
+    Remove specified keys from the Streamlit session state.
+
+    Parameters:
+    - session_state_keys (list): A list of keys to be removed from the session state.
+
+    Notes:
+    - If a key from the list is not found in the session state, it is simply ignored.
+    - This function is useful for cleaning up or resetting specific parts of the session state without affecting other parts.
+
+    Example:
+    ```python
+    remove_session_state(['key1', 'key2'])
+    ```
+    This would attempt to remove 'key1' and 'key2' from the session state.
+    """
     for key in session_state_keys:
         if key in st.session_state:
             del st.session_state[key]
                     
 def delete_survey():
+    """
+    Provides a Streamlit UI component for users to select a survey and delete it.
+
+    Process:
+    1. Fetches the directory path of available surveys.
+    2. Lists available surveys for selection from a dropdown menu.
+    3. Upon survey selection, prompts the user for confirmation to delete the selected survey.
+    4. Deletes the survey if confirmed.
+
+    Requirements:
+    - This function relies on other utility functions like `create_directory_list()` and `delete_subdirectory_with_confirmation()`.
+    - Assumes a certain structure in the session state to find available surveys.
+
+    Note:
+    - Deletion is permanent and will remove all related data of the selected survey.
+    """
     st.divider()
     with st.container():
         SURVEYS_DIRPATH =  st.session_state.get('APP', {}).get('CONFIG', {}).get('SURVEYS_DIRPATH', None)
@@ -247,15 +391,36 @@ def delete_survey():
                 
 
 def survey_data_management():
+    """
+    Embeds survey management related activities within an expander in the Streamlit sidebar.
+
+    Features:
+    1. Offers an interface to create a new survey via the `new_survey()` function.
+    2. Offers an interface to delete existing surveys via the `delete_survey()` function.
+
+    Display:
+    - The UI components for both creating and deleting surveys are embedded within separate containers.
+    - This function is intended to be a part of the sidebar and provides a user-friendly way to manage surveys.
+    """
     with st.sidebar.expander(label='**Survey data management**', expanded=False):
         with st.container():
             new_survey()
         with st.container():
             delete_survey()
         
-                
 
 def run():
+    """
+    Executes the primary sequence of operations for the Streamlit app.
+
+    Sequence:
+    1. Initializes session state variables for the app using `init_session_state()`.
+    2. Constructs the sidebar interface with logos, about information, and core activities using `build_sidebar()`.
+    3. Enables survey data management functionalities like creating and deleting surveys with `survey_data_management()`.
+
+    Usage:
+    - Typically called once when the Streamlit app is run to set up the main components and logic.
+    """
     init_session_state()
     build_sidebar()
     survey_data_management()
