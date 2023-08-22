@@ -1418,7 +1418,7 @@ def get_available_stations_with_videos(SURVEY_DATA:dict, VIDEOS_DIRPATH:str, vid
     return AVAILABLE_STATIONS_WITH_VIDEOS        
 
 
-def station_selector(SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WITH_VIDEOS:dict, suffix:str = '***'):
+def station_selector(SURVEY_DATA:dict, SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WITH_VIDEOS:dict, suffix:str = '***'):
     """
     Provides a UI element to select available stations and prepares the necessary directory path for 
     the chosen station, creating the directory if it doesn't exist.
@@ -1584,6 +1584,7 @@ def run():
                 
 
             STATION_NAME, STATION_DIRPATH = station_selector(
+                SURVEY_DATA=SURVEY_DATA,
                 SURVEY_DIRPATH=SURVEY_DIRPATH, 
                 AVAILABLE_STATIONS_WITH_VIDEOS=AVAILABLE_STATIONS_WITH_VIDEOS)
             STATION_BENTHOS_INTERPRETATION = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {})
