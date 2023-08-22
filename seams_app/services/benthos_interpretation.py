@@ -680,43 +680,38 @@ try:
     # --------------------
     if CURRENT is None:
         st.info('**Fresh current state.**')
-    
-
-    SURVEY_NAME = CURRENT.get('SURVEY_NAME', None)
-    STATION_NAME = CURRENT.get('STATION_NAME', None)
-    VIDEO_NAME = CURRENT.get('VIDEO_NAME', None)
-    SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
-    
-    
-
-    if SURVEY_FILEPATH is not None:
-        SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
-        if VIDEO_NAME is None:
-            st.warning('Station with incompatible video selected or survey not initialized properly. Ensure the selected station and available video has the suffix **(***)**. Go to **Menu>Survey initialization** to initialize the survey.')
-            st.stop()            
-       
-        SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data
-        STATION_BENTHOS_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]
-        RANDOM_FRAMES = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES']
-
-        FRAME_INTERPRETATION = frame_dashboard(
-            SURVEY_NAME=SURVEY_NAME,
-            STATION_NAME=STATION_NAME,
-            VIDEO_NAME=VIDEO_NAME,            
-            STATION_BENTHOS_INTERPRETATION=STATION_BENTHOS_INTERPRETATION,                      
-        )
-
-        # ----
-                    
-        show_tabs(
-            SURVEY_NAME=SURVEY_NAME,            
-            SURVEY_FILEPATH=SURVEY_FILEPATH,
-            STATION_NAME=STATION_NAME,
-            
-           )
-    else:
-        st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
+    else:         
+        SURVEY_NAME = CURRENT.get('SURVEY_NAME', None)
+        STATION_NAME = CURRENT.get('STATION_NAME', None)
+        VIDEO_NAME = CURRENT.get('VIDEO_NAME', None)
+        SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
         
+        
+        if SURVEY_FILEPATH is not None:
+            SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
+            if VIDEO_NAME is None:
+                st.warning('Station with incompatible video selected or survey not initialized properly. Ensure the selected station and available video has the suffix **(***)**. Go to **Menu>Survey initialization** to initialize the survey.')
+                st.stop()            
+        
+            SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data
+            STATION_BENTHOS_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]
+            RANDOM_FRAMES = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES']
+
+            FRAME_INTERPRETATION = frame_dashboard(
+                SURVEY_NAME=SURVEY_NAME,
+                STATION_NAME=STATION_NAME,
+                VIDEO_NAME=VIDEO_NAME,            
+                STATION_BENTHOS_INTERPRETATION=STATION_BENTHOS_INTERPRETATION,                      
+            )
+            # ----
+            show_tabs(
+                SURVEY_NAME=SURVEY_NAME,            
+                SURVEY_FILEPATH=SURVEY_FILEPATH,
+                STATION_NAME=STATION_NAME,               
+            )
+        else:
+            st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
+            
 
 except Exception as e:
     trace_error = traceback.print_exc()
