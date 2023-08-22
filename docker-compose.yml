@@ -3,8 +3,8 @@ services:
     container_name: seams-app
     image: "begeospatial/seams-app:latest"
     volumes:
-      - seams-data-volume:/home/seams-app-user/seams-app/seams_app/data
-      - <LOCALPATH_TO_SEAMS-APP_REPO>:/home/seams-app-user/seams-app
+        # Add the local volume to the container
+        - /home/begeospatial/develop/seams-app:/home/seams-app-user/seams-app
     user: "1000:1000"
     environment:
       - USER=seams-app-user
@@ -12,5 +12,3 @@ services:
       - "8501:8501"
     command:  streamlit run /home/seams-app-user/seams-app/seams_app/app.py 
 
-volumes:
-  seams-data-volume:
