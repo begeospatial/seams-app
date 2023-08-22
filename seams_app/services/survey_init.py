@@ -1102,6 +1102,8 @@ def show_video_processing(
     if used in a different context.
     """
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
+        SURVEY_DIRPATH = SURVEY_DATA.get('SURVEY', {}).get('SURVEY_DIRPATH', None)
+        VIDEOS_DIRPATH = SURVEY_DATA.get('SURVEY', {}).get('VIDEOS_DIRPATH', None)
             
         if LOCAL_VIDEOS is not None and  len(LOCAL_VIDEOS)>0:
             LOCAL_VIDEOS = {f'{k}{videos_file_extension}': v for k, v in LOCAL_VIDEOS.items()}
