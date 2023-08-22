@@ -732,7 +732,10 @@ def get_survey_selected(SURVEYS_AVAILABLE:dict)->tuple:
 def show_random_frames(
         has_random_frames:bool, 
         SURVEY_DATASTORE:DataStore, 
-        SURVEY_DATA:dict, 
+        SURVEY_DATA:dict,
+        SURVEY_NAME:str,
+        SURVEY_FILEPATH:str,
+        VIDEO_NAME:str, 
         STATION_NAME:str, 
         codec:str = None):
     """
@@ -765,7 +768,7 @@ def show_random_frames(
         FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {}).get('FRAMES', None)
         # Aqui esta el error
         RANDOM_FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {}).get('RANDOM_FRAMES', None)
-        st.session_state['RANDOM_FRAMES_IDS'] = RANDOM_FRAMES.keys()
+        st.session_state['RANDOM_FRAMES_IDS'] = list(RANDOM_FRAMES.keys())
         _VIDEO_NAME = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {}).get('VIDEO_NAME', None)            
         if _VIDEO_NAME == VIDEO_NAME and RANDOM_FRAMES is not None and len(RANDOM_FRAMES)>0:
             show_station_is_ready = True
@@ -821,7 +824,7 @@ def show_random_frames(
                                 'CURRENT': {
                                     'SURVEY_NAME': SURVEY_NAME, 
                                     'STATION_NAME': STATION_NAME,
-                                    'VIDEO_NAME': VIDEO_NAME,
+                                    'VIDEO_NAME': _VIDEO_NAME,
                                     'SURVEY_FILEPATH': SURVEY_FILEPATH,                                    
                                     }})
                 # --------------------        
@@ -1036,8 +1039,12 @@ def show_video_processing(
         STATION_NAME:str,
         VIDEO_NAME:str,
         LOCAL_VIDEOS:dict,
-        SURVEY_DATA:dict, 
-        SURVEY_DATASTORE:DataStore, 
+        SURVEY_DATA:dict,
+        SURVEY_DIRPATH:dict,    
+        SURVEY_FILEPATH:str, 
+        SURVEY_DATASTORE:DataStore,
+        STATION_DIRPATH:str,
+        VIDEOS_DIRPATH:str, 
         
         videos_file_extension:str = '.mp4'):
     
@@ -1103,9 +1110,7 @@ def show_video_processing(
     """
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
         
-        SURVEY_DIRPATH = SURVEY_DATA.get('SURVEY', {}).get('SURVEY_DIRPATH', None)
-        STATION_DIRPATH = SURVEY_DATA.get('SURVEY', {}).get('STATION_DIRPATH', None)
-        VIDEOS_DIRPATH = SURVEY_DATA.get('SURVEY', {}).get('VIDEOS_DIRPATH', None)
+        
             
         if LOCAL_VIDEOS is not None and  len(LOCAL_VIDEOS)>0:
             LOCAL_VIDEOS = {f'{k}{videos_file_extension}': v for k, v in LOCAL_VIDEOS.items()}
@@ -1315,7 +1320,7 @@ def show_video_processing(
         st.write('**No survey data available**. Ensure survey data is available in the SURVEY folder or within the **<survey_file.yaml>**  Refresh the app and try again.')
 
 
-def get_available_videos(SURVEY_DATA:dict, VIDEOS_DIRPATH:str, videos_file_extension:str = '.mp4')->dict:
+def get_available_videos(SURVEY_DATA:dict, STATION_NAME:str, VIDEOS_DIRPATH:str, videos_file_extension:str = '.mp4')->dict:
     """
     Retrieves a list of available video names based on the videos present in a given directory 
     and those registered in the survey data for a specific station.
@@ -1352,6 +1357,7 @@ def get_available_videos(SURVEY_DATA:dict, VIDEOS_DIRPATH:str, videos_file_exten
     not include the file extension. The function appends the file extension to the video names 
     from the directory to make the comparison.
     """
+    
     LOCAL_VIDEOS =  get_files_dictionary(VIDEOS_DIRPATH, file_extension=videos_file_extension)
     LOCAL_VIDEOS = {f'{k}{videos_file_extension}': v for k, v in LOCAL_VIDEOS.items()}
     SET_LOCAL_VIDEOS = set(LOCAL_VIDEOS.keys() )
@@ -1597,7 +1603,8 @@ def run():
         with col3:
             if VIDEOS_DIRPATH is not None and os.path.exists(VIDEOS_DIRPATH):
                 AVAILABLE_VIDEOS =  get_available_videos(
-                    SURVEY_DATA = SURVEY_DATA, 
+                    SURVEY_DATA = SURVEY_DATA,
+                    STATION_NAME=STATION_NAME, 
                     VIDEOS_DIRPATH = VIDEOS_DIRPATH, 
                     videos_file_extension = '.mp4')
 
@@ -1637,7 +1644,15 @@ def run():
         # --------------------------
         if has_random_frames and has_local_videos:
             message_col4.success(f'**`{suffix}`** | has random frames extracted')
-            show_random_frames(has_random_frames, SURVEY_DATASTORE, SURVEY_DATA, STATION_NAME, codec = st.session_state.get('codec', None)) 
+            show_random_frames(
+                has_random_frames= has_random_frames,
+                SURVEY_DATASTORE=SURVEY_DATASTORE,
+                SURVEY_DATA=SURVEY_DATA,
+                SURVEY_NAME=SURVEY_NAME,
+                SURVEY_FILEPATH=SURVEY_FILEPATH,
+                STATION_NAME=STATION_NAME,
+                VIDEO_NAME=VIDEO_NAME,
+                codec = st.session_state.get('codec', None)) 
         
         LOCAL_VIDEOS =  get_files_dictionary(VIDEOS_DIRPATH, file_extension='.mp4')
 
@@ -1648,7 +1663,11 @@ def run():
                 VIDEO_NAME=VIDEO_NAME,
                 LOCAL_VIDEOS=LOCAL_VIDEOS,
                 SURVEY_DATA=SURVEY_DATA,
+                SURVEY_FILEPATH=SURVEY_FILEPATH,
                 SURVEY_DATASTORE=SURVEY_DATASTORE,
+                SURVEY_DIRPATH=SURVEY_DIRPATH,
+                STATION_DIRPATH=STATION_DIRPATH,
+                VIDEOS_DIRPATH=VIDEOS_DIRPATH
                 )
 
         IS_SURVEY_DATA_AVAILABLE = survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE)
