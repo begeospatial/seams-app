@@ -4,7 +4,7 @@ services:
     image: "begeospatial/seams-app:latest"
     volumes:
       - seams-data-volume:/home/seams-app-user/seams-app/seams_app/data
-      - ../seams-app:/home/seams-app-user/seams-app
+      - <LOCALPATH_TO_SEAMS-APP_REPO>:/home/seams-app-user/seams-app
     user: "1000:1000"
     environment:
       - USER=seams-app-user
