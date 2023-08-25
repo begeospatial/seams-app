@@ -18,7 +18,7 @@ Whether you are a geologist, marine scientist, or environmental researcher, the 
 - Ordered by the Sveriges Geologiska Undersokning (SGU)
 
 ## Acknowledgements
-We would like to express our sincere gratitude to the Swedish Governmental Agency for Innovation Systems [Vinnova]/(https://www.vinnova.se/) (Diarienummer: 2021-03642) and the Swedish Research Council for Sustainable Development [Formas](https://formas.se/) (Brg2160) for their support, which has been instrumental in the development of the SEAMS app. Their commitment to advancing technology for environmental management in terrestrial and aquatic environments is deeply appreciated.
+We would like to express our sincere gratitude to the Swedish Governmental Agency for Innovation Systems [Vinnova](https://www.vinnova.se/) (Diarienummer: 2021-03642) and the Swedish Research Council for Sustainable Development [Formas](https://formas.se/) (Brg2160) for their support, which has been instrumental in the development of the SEAMS app. Their commitment to advancing technology for environmental management in terrestrial and aquatic environments is deeply appreciated.
 
 ## Credits
 
