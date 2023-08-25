@@ -4,7 +4,7 @@ import shutil
 from bgstools.io import get_available_services, create_directory_list, check_directory_exist_and_writable, path_exists
 from bgstools.stt import build_activities_menu
 from bgstools.io import load_toml_variables, create_subdirectory, create_new_directory
-from seams_app.datastore_utils import update_DATASTORE
+from bgstools.datastorage import DataStore, YamlStorage
 
 # --------------------
 st.set_page_config(
@@ -329,10 +329,21 @@ def new_survey():
                         init_session_state(reset_session_state=True)
                         
                         st.session_state['APP']['SURVEY'].update(SELECTED)
-                        update_DATASTORE({'APP': st.session_state['APP']}, callback_message=st.error)
+
+                        data={'APP': st.session_state['APP']}
+                        # --------------------
+                        SURVEY_DATASTORE = DataStore(YamlStorage(file_path=SURVEY_FILEPATH))
+                        _data = SURVEY_DATASTORE.storage_strategy.data
+                        _data.update(data)
+                        SURVEY_DATASTORE.storage_strategy.data = _data
+                        SURVEY_DATASTORE.store_data(data=data)
+                        # --------------------
+                        st.session_state['SURVEY_DATASTORE'] = SURVEY_DATASTORE
+                        st.session_state['SURVEYS_AVAILABLE'][SURVEY_NAME] = SURVEY_DIRPATH
+                        st.session_state.update(_data)                        
+                        # --------------------
                         st.toast(f'Survey: **{SURVEY_NAME}**  `SURVEY_DATASTORE` created and initialized')
-                        
-                        
+                        # --------------------                        
                     st.success(f'Survey: **{SURVEY_NAME}** created')
                     st.experimental_rerun()                    
                         

@@ -41,7 +41,7 @@ def get_DATASTORE()->DataStore:
         else:
             return None
 
-def update_DATASTORE(data: dict, callback_message:callable = None)->DataStore:
+def update_DATASTORE(data: dict, SURVEY_FILEPATH:str, callback_message:callable = None)->DataStore:
     """
     Updates the stored survey data in the DataStore instance with new data.
 
@@ -88,14 +88,13 @@ def update_DATASTORE(data: dict, callback_message:callable = None)->DataStore:
             st.session_state['SURVEY_DATASTORE'].storage_strategy.data = _data
             st.session_state['SURVEY_DATASTORE'].store_data(data=_data)
             return _data
-        else:        
-                SURVEY_DATASTORE = get_DATASTORE()                
-                _data = SURVEY_DATASTORE.storage_strategy.data
-                _data.update(data)
+        else:   
+            if SURVEY_FILEPATH is not None:
+                SURVEY_DATASTORE = DataStore(YamlStorage(file_path=SURVEY_FILEPATH))
                 SURVEY_DATASTORE.storage_strategy.data = _data
                 SURVEY_DATASTORE.store_data(data=_data)
                 st.session_state['SURVEY_DATASTORE'] = SURVEY_DATASTORE
-                return SURVEY_DATASTORE
+                return _data
     else:
         if callback_message is not None:
             callback_message('update_DATASTORE: **data** is not defined or is not a dictionary.')
