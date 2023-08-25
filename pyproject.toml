@@ -3,12 +3,12 @@
 # twine upload -r pypi dist/*
 
 [tool.poetry]
-name = "sgu-seams-app"
-version = "1.4.2.1"
+name = "seams-app"
+version = "1.5.2.1"
 description = "Sveriges Geologiska Undersökning (SGU) - SEafloor Annotation and Mapping Support"
 authors = ["Be GeoSpatial AB <sgu.seams.app@begeospatial.com>"]
 readme = "README.md"
-packages = [{include = "sgu_seams_app"}]
+packages = [{include = "seams_app"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
