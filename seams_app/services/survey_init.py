@@ -737,7 +737,8 @@ def show_random_frames(
         SURVEY_FILEPATH:str,
         VIDEO_NAME:str, 
         STATION_NAME:str, 
-        codec:str = None):
+        codec:str = None, 
+        suffix:str = '***'):
     """
     Interactively displays and manages random frames for benthic interpretation in a Streamlit application.
     
@@ -1108,13 +1109,11 @@ def show_video_processing(
     This function is specifically designed for use within a Streamlit app and may require modifications 
     if used in a different context.
     """
-    if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
-        
-        
-            
+    if SURVEY_DATA is not None and len(SURVEY_DATA)>0:        
         if LOCAL_VIDEOS is not None and  len(LOCAL_VIDEOS)>0:
             LOCAL_VIDEOS = {f'{k}{videos_file_extension}': v for k, v in LOCAL_VIDEOS.items()}
 
+            
             with st.expander('**Video preprocessing:**', expanded=True):
                 LOCAL_VIDEO_FILEPATH = LOCAL_VIDEOS.get(VIDEO_NAME, None)
                 
@@ -1197,6 +1196,36 @@ def show_video_processing(
                                         SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
                                         st.toast('Data saved. Ready for frames extraction.')
                                         st.experimental_rerun()
+                            elif ~REQUIRES_VIDEO_CONVERSION:
+                                VIDEO_FILEPATH = LOCAL_VIDEO_FILEPATH
+                                VIDEO_DIRPATH = os.path.dirname(VIDEO_FILEPATH)
+
+                                VIDEO_INFO = get_video_info(VIDEO_FILEPATH)
+                                st.session_state['codec'] = VIDEO_INFO['codec']
+
+                                VIDEO_INTERPRETATION = { 
+                                    'REQUIRES_VIDEO_CONVERSION': REQUIRES_VIDEO_CONVERSION,
+                                    'SURVEY_NAME': SURVEY_NAME,
+                                    'SURVEY_DIRPATH': SURVEY_DIRPATH,
+                                    'SURVEY_FILEPATH': SURVEY_FILEPATH,
+                                    'STATION_NAME': STATION_NAME,
+                                    'STATION_DIRPATH': STATION_DIRPATH,                                
+                                    'VIDEO_NAME': VIDEO_NAME, 
+                                    'VIDEO_FILEPATH': VIDEO_FILEPATH,
+                                    'VIDEO_DIRPATH': VIDEO_DIRPATH,
+                                    'VIDEO_INFO': VIDEO_INFO,}
+                            
+                                SURVEY_DATA['VIDEOS'][STATION_NAME].update({VIDEO_NAME: True})
+
+                                if STATION_NAME not in SURVEY_DATA['BENTHOS_INTERPRETATION']:
+                                    SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME] = {}
+
+                                SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].update(VIDEO_INTERPRETATION)
+                                
+                                SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
+                                st.toast('Data saved. Ready for frames extraction.')
+                            
+
                     
                     # ------------------------------
                     if codec is not None and codec=='h264':
@@ -1213,8 +1242,6 @@ def show_video_processing(
                             confirm_btn = st.empty()
                             frames_message_01 = st.empty()
                             frames_message_02 = st.empty()
-
-
                         
                         _FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].get('FRAMES', None)
                         _RANDOM_FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].get('RANDOM_FRAMES', None)
@@ -1260,6 +1287,7 @@ def show_video_processing(
                                 video_player=video_player, 
                                 LOCAL_VIDEO_FILEPATH= LOCAL_VIDEO_FILEPATH, 
                                 START_TIME_IN_SECONDS= START_TIME_IN_SECONDS)
+                            
                             SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['START_TIME_IN_SECONDS'] = START_TIME_IN_SECONDS                            
 
                         max_value = int(video_info['duration'])
