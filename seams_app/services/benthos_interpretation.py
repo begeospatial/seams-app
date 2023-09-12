@@ -327,7 +327,7 @@ def benthos_main_menu(
         _FRAME_INDEX = st.session_state.get('FRAME_INDEX', None)
         counter = st.session_state.get('COUNTER', None)
         
-        if _FRAME_INDEX is None or _FRAME_INDEX != FRAME_INDEX:
+        if counter is not None and (_FRAME_INDEX is None or _FRAME_INDEX != FRAME_INDEX):
             for i in range(1, counter+1):
                 st.session_state[f'dotpoint_{i}'] = False
          
@@ -683,7 +683,7 @@ def frame_dashboard(
                     'frame_x_coord': int(centroids_dict[i].x),
                     'frame_y_coord': int(centroids_dict[i].y),
                     'TAXONS': overall_taxons,
-                    'SUBSTRATE':__substrate,
+                    'SUBSTRATE': _substrate,
                     'boundary_width':224,
                     'boundary_height':224, } for i in dotpoints_to_save}
             
