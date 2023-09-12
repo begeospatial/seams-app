@@ -215,7 +215,7 @@ def build_sidebar():
     refresh_button = st.sidebar.button("Refresh")
     if refresh_button:
         # Clear values from *all* all in-memory and on-disk data caches:
-        st.cache_data.clear()
+        # st.cache_data.clear()
         st.experimental_rerun()
         
     # Load the yaml with core services as activities    

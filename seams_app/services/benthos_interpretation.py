@@ -95,51 +95,197 @@ def convert_df(df:pd.DataFrame, index:bool=False, encoding:str='utf-8'):
     return df.to_csv(index=index).encode(encoding)
 
 
-def frame_results(
-        FRAME_INTERPRETATION:dict):
-    METADATA = FRAME_INTERPRETATION.get('METADATA', {})
-    if len(METADATA) > 0:
-        
-        #FRAME_NAME = METADATA['FRAME_NAME']
-        
-        with st.expander(label='Frame results', expanded=True):
-            
-            if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
-                _FRAME_INTERPRETATION = FRAME_INTERPRETATION
-                _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()
-                for id in _IDs:
-                    _FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE'] = [s for s in FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE']][0]
-                    _FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS'] = [t for t in FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS']] 
-                df = pd.DataFrame.from_dict(_FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
-                df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
+def survey_results(SURVEY_DATA):
 
+    df = []
+    stations = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'].keys()
+    SURVEY_DIRPATH = SURVEY_DATA['APP']['SURVEY']['SURVEY_DIRPATH']
+
+    taxons = list(SURVEY_DATA['APP']["TAXONS"].keys())
+    substrates = list(SURVEY_DATA['APP']["SUBSTRATES"].keys())
+
+    summary = {}
+
+    if len(taxons) > 0:            
+        for STATION_NAME in stations:
+            FRAMES = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES']
+            for FRAME_NAME in FRAMES:
+                FRAME_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+
+                METADATA = FRAME_INTERPRETATION.get('METADATA', {})
+                if len(METADATA) > 0:            
+                    if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
+                        _FRAME_INTERPRETATION = FRAME_INTERPRETATION
+                        _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()
+                        _df = pd.DataFrame.from_dict(_FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
+                        _df['SURVEY_NAME'] = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['SURVEY_NAME']
+                        _df['STATION_NAME'] = STATION_NAME
+                        _df['VIDEO_NAME'] = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['VIDEO_NAME']
+                        _df['FRAME_NAME'] = FRAME_NAME
+                        for t in taxons:
+                            _df[t] = None
+                            summary[t] = 0                                                       
+                        for s in substrates:
+                            _df[s] = None
+                            summary[s] = 0
+
+                        for id in _IDs:
+                            is_id = _df['DOTPOINT_ID'] == id
+                            _subtrate = _df.loc[is_id, 'SUBSTRATE'].tolist()[0]
+                            _taxons = _df.loc[is_id, 'TAXONS'].tolist()[0]
+                            if isinstance(_taxons, dict):
+                                _taxons = list(_taxons.keys())
+                            if isinstance(_subtrate, dict):
+                                _subtrate = list(_subtrate.keys())[0]
+
+                            #st.write(_subtrate, _taxons)
+
+                            if _subtrate in substrates:
+                                _df.loc[is_id, _subtrate] = 1
+                                
+
+                            for t in _taxons:
+                                if t is not None:                                        
+                                    if t in taxons:
+                                        _df.loc[is_id, t] = 1
+                                        
+
+                        df.append(_df)
+                        
+                                            
+        df = pd.concat(df)
+        df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
+
+        is_station = df['STATION_NAME'] == STATION_NAME
+
+        for t in taxons:
+            summary[t] = df.loc[is_station, t].sum()
+        for s in substrates:
+            summary[s] = df.loc[is_station, s].sum()
+
+
+        column_config = {                                        
+           
+            'frame_x_coord': {'editable': False, 'rename': False},
+            'frame_y_coord': {'editable': False, 'rename': False},
+            'DOTPOINT_ID': {'editable': False, 'rename': False},                            
+            } 
+        
+        st.markdown(f'## Percent cover `{STATION_NAME}`')
+        st.dataframe(pd.DataFrame.from_dict(summary, orient='index').T, hide_index=True)
+        st.markdown('## Survey results')
+        data_editor = st.data_editor(
+            data=df,
+            #num_rows=10,
+            column_config= column_config,
+            key='data_editor_survey',
+            use_container_width=True, 
+            hide_index=True,
+            column_order=['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord']+ taxons + substrates,
+            disabled=True,
+            )
+        
+        st.divider()           
+
+        save_to_file = st.button(label='Save file `csv`', key=f'button_save_survey')
+        if save_to_file:
+            filename = os.path.join(SURVEY_DIRPATH, f'SEAMS_SURVEY_RESULTS_{SURVEY_NAME}.csv')
+            with st.spinner('Saving file...'):
+                   df.to_csv(
+                       os.path.join(filename),
+                        encoding='utf-8',
+                        index=False,
+                        )
                 
-                st.dataframe(df)
-            else:
-                st.warning('No dotpoints selected or saved')
+            if os.path.exists(filename):
+                st.info(f'File saved: {filename}')
+                st.balloons()
+
+
+def frame_results(
+        SURVEY_DATA:dict,
+        STATION_NAME:str,
+        FRAME_NAME:str,        
+        key:str= None):
+    
+    FRAME_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+    METADATA = FRAME_INTERPRETATION.get('METADATA', {})
+    if len(METADATA) > 0:            
+        if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
+            _FRAME_INTERPRETATION = FRAME_INTERPRETATION
+            _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()
+            for id in _IDs:
+                _FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE'] = [s for s in FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE']][0]
+                _FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS'] = [t for t in FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS']] 
+            df = pd.DataFrame.from_dict(_FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
+            df['FRAME_NAME'] = FRAME_NAME
+
+            column_config = {                            
+                'TAXONS': {'editable': False, 'rename': False,},
+                'SUBSTRATE':  st.column_config.SelectboxColumn(
+                    label='SUBSTRATE',
+                    width='medium',
+                    options=[s[0] for s in substrates],                                
+                    ),  
+                'frame_x_coord': {'editable': False, 'rename': False},
+                'frame_y_coord': {'editable': False, 'rename': False},
+                'DOTPOINT_ID': {'editable': False, 'rename': False},                            
+                } 
+            
+            data_editor = st.data_editor(
+                data=df,
+                num_rows=10,
+                column_config= column_config,
+                key='data_editor_frames',
+                use_container_width=True, 
+                hide_index=True,
+                column_order=['FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord', 'TAXONS', 'SUBSTRATE'],
+                disabled=True,
+                )
+            
+            #FRAME_TAXONS = set()
+            
+            #frame_summary_dict = data_editor.set_index('DOTPOINT_ID', drop=False).to_dict(orient='index')
+            #for id in frame_summary_dict:
+            #    FRAME_TAXONS.update([t for t in frame_summary_dict[id]['TAXONS']])
+            #    substrate = frame_summary_dict[id]['SUBSTRATE']
+            #    frame_summary_dict[id][substrate] = 1
+            #    for taxon in FRAME_TAXONS:                    
+            #        frame_summary_dict[id][taxon] = 1
+            
+            # ------------------
+            #st.write('## Frame summary')
+            #df = pd.DataFrame.from_dict(frame_summary_dict, orient='index')
+            #df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
+            #df['SURVEY_NAME'] = SURVEY_NAME
+            #df['STATION_NAME'] = STATION_NAME
+            #df['FRAME_NAME'] = FRAME_NAME
+            #df['VIDEO_NAME'] = VIDEO_NAME
+            
+            #st.divider()
+            #st.dataframe(df)
+
+            #save_to_file = st.button(label='Save file `csv`', key=f'button_{key}')
+            #if save_to_file:
+            #    filename = os.path.join(SURVEY_DIRPATH, f'{SURVEY_NAME}_STATION_{STATION_NAME}_FRAME_{FRAME_NAME}_frame_summary.csv')
+            #    with st.spinner('Saving file...'):
+                    
+            #        df.to_csv(
+            #            os.path.join(filename),
+            #            encoding='utf-8',
+            #            index=False,
+            #            )
+                
+            #    if os.path.exists(filename):
+            #        st.info(f'File saved: {filename}')
+            #        st.balloons()
+
+            #return frame_summary_dict
+        
+        else:
+            st.warning('No dotpoints selected or saved')
     else:
         st.warning('No data saved for selected frame yet.')               
-
-
-def initialize_benthos_interpretation(CURRENT:dict=None)->dict:
-
-        SURVEY_NAME = CURRENT['SURVEY_NAME']
-        SURVEY_FILEPATH = CURRENT['SURVEY_FILEPATH']        
-        STATION_NAME = CURRENT['STATION_NAME']
-        VIDEO_NAME = CURRENT['VIDEO_NAME']
-
-        SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
-        SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data
-        
-        result = {
-            'SURVEY_NAME': SURVEY_NAME,
-            'STATION_NAME': STATION_NAME,
-            'VIDEO_NAME': VIDEO_NAME,
-            'SURVEY_DATASTORE': SURVEY_DATASTORE,
-            'SURVEY_DATA': SURVEY_DATA,
-            }
-
-        return result
 
 
 def benthos_main_menu(
@@ -178,6 +324,18 @@ def benthos_main_menu(
             'FRAME_NAME': FRAME_NAME, 
             'FRAME_FILEPATH': FRAME_FILEPATH, 
             }
+        _FRAME_INDEX = st.session_state.get('FRAME_INDEX', None)
+        counter = st.session_state.get('COUNTER', None)
+        
+        if _FRAME_INDEX is None or _FRAME_INDEX != FRAME_INDEX:
+            for i in range(1, counter+1):
+                st.session_state[f'dotpoint_{i}'] = False
+         
+
+        st.session_state['FRAME_NAME'] = FRAME_NAME
+        st.session_state['FRAME_INDEX'] = FRAME_INDEX
+        st.session_state['FRAME_FILEPATH'] = FRAME_FILEPATH
+        
         return result
             
 
@@ -209,19 +367,18 @@ def display_grid(grid, disable_dotpoints:list = [])->dict:
         for col in cols:
             with col:
                 counter += 1
-                toggle_button(
+                toggle_button(                    
                     label = str(counter), 
                     key=f'dotpoint_{counter}',
                     disabled= True if counter in disable_dotpoints else False, 
                     )
                 # adds the dotpoint to the dictionary if it is selected
+
+                st.session_state['COUNTER'] = counter
+
                 if st.session_state[f'dotpoint_{counter}']:
-                    dotpoints_selected_dict[counter] = True
-                # removes the dotpoint from the dictionary if it is deselected
-                else:
-                    if counter in dotpoints_selected_dict:
-                        del dotpoints_selected_dict[counter]
-                    
+                    dotpoints_selected_dict[counter] = True                
+        
     return dotpoints_selected_dict
 
 
@@ -240,19 +397,17 @@ def reset_dotpoints(
             options=[str(i) for i in dotpoint_grid_ids.keys()])
         
         reset = st.form_submit_button(label='reset')
-        if reset:            
-            counter = 0
+        if reset:
             if len(reset_dotpoints) > 0:
                 for dotpoint in reset_dotpoints:
-                    counter += 1                    
+                    st.session_state[f'dotpoint_{dotpoint}'] = False                    
                     del dotpoint_grid_ids[int(dotpoint)]
-                    del dotpoints_done[int(dotpoint)]
+                    if int(dotpoint) in dotpoints_done:
+                        del dotpoints_done[int(dotpoint)]
                     del dotpoints[int(dotpoint)]
                     SURVEY_DATASTORE.storage_strategy.data = SURVEY_DATA
                     SURVEY_DATASTORE.store_data(data=SURVEY_DATA)
             st.experimental_rerun()        
-            #return dotpoints_done, FRAME_INTERPRETATION
-
 
 def create_markers_grid(FRAME_NAME:str, DOTPOINTS_ADVANCED_OPTIONS:dict, bbox:tuple):
     centroids = markers_grid(                                
@@ -295,7 +450,7 @@ def show_tabs(
         SURVEY_NAME:str = None,
         SURVEY_FILEPATH:str = None,
         STATION_NAME:str = None,
-        substrates:list = substrates,            
+        FRAME_NAME:str = None,            
         ):
     
     SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
@@ -313,118 +468,41 @@ def show_tabs(
             # Generating FRAME_NAMES
             FRAME_NAMES = {i+1: k for i, k in enumerate(RANDOM_FRAMES.keys())}
 
-            # Generating RANDOM_FRAMES_INDEX_DICT
-            RANDOM_FRAMES_INDEX_DICT = {i: f'{k} {get_tab_suffix_icon(RANDOM_FRAMES[k]["INTERPRETATION"]["STATUS"])}' for i, k in FRAME_NAMES.items()}
-
-            # Creating tab names list
-            tab_names = [f'**{str(i).zfill(2)}** {RANDOM_FRAMES_INDEX_DICT[i]} |' for i in RANDOM_FRAMES_INDEX_DICT]
-
             # Adding 'RAW DATA' tab at the end
-            tabs = st.tabs(tab_names + ['**OVERALL SUMMARY** |', '**RAW DATA** |'])
-
-            with tabs[-2]:
-                
-                dframes = {}
-                substrates_list = []
-                taxons_list = []
-
-                for FRAME_NAME in RANDOM_FRAMES.keys():
-                    FRAME_TAXONS = set()
-                    FRAME_INTERPRETATION = RANDOM_FRAMES[FRAME_NAME]['INTERPRETATION']
-
-                    if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
-                        _FRAME_INTERPRETATION = FRAME_INTERPRETATION
-                        _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()                        
-                        for id in _IDs:
-                            _FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE'] = [s for s in FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE']][0]
-                            _FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS'] = [t for t in FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS']] 
-                            FRAME_TAXONS.update([t for t in _FRAME_INTERPRETATION['DOTPOINTS'][id]['TAXONS']])
-                            _substrate =  _FRAME_INTERPRETATION['DOTPOINTS'][id]['SUBSTRATE']                            
-                            substrates_list.append(_substrate)
-
-                            _FRAME_INTERPRETATION['DOTPOINTS'][id][_substrate] = 1
-                            for taxon in FRAME_TAXONS:                    
-                                _FRAME_INTERPRETATION['DOTPOINTS'][id][taxon] = 1
-                                taxons_list.append(taxon)
-
-                        df = pd.DataFrame.from_dict(_FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
-                        df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
-                        df['SURVEY_NAME'] = SURVEY_NAME
-                        df['STATION_NAME'] = STATION_NAME
-                        df['FRAME_NAME'] = FRAME_NAME
-                        df['VIDEO_NAME'] = VIDEO_NAME
-                        df['DOTPOINT_ID'] = df.index
-                        
-
-                        dframes[FRAME_NAME] = df
-
-
-                if len(dframes) == 0:
-                    st.warning('No frames available to summarize. Proceed to benthos interpretation of the frames to generate the summary.')
-                else:
-                       
-                    df = pd.concat(dframes.values(), ignore_index=True)
-                    taxon_columns =  sorted(list(set(taxons_list)))
-                    substrates_columns = sorted(list(set(substrates_list)))
-                    export_cols = ['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord'] + substrates_columns + taxon_columns
-                    st.header('Benthos interpretation results')
-                    st.dataframe(df[export_cols])
-                    
-                    save_to_file = st.button(label='Save file `csv`', key=f'button_survey_summary_key')
-                    if save_to_file:
-                        filename = os.path.join(SURVEY_DIRPATH, f'SEAMS__{SURVEY_NAME}_BENTHOS_INTEPRETATION_RESULTS.csv')
-                        with st.spinner('Saving file...'):
-                            
-                            df.to_csv(
-                                os.path.join(filename),
-                                encoding='utf-8',
-                                index=False,
-                                )
-                        
-                        if os.path.exists(filename):
-                            st.info(f'File saved: {filename}')
-                            st.balloons()
-                        
-                        else:
-                            st.warning(f'{FRAME_NAME} -- No dotpoints selected or saved')
-
-
-                    # Summarize by the 'Category' column
-                    agg_dict = {k: 'sum' for k in substrates_columns + taxon_columns}
-                    summary_df = df.groupby(['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME']).agg(agg_dict).reset_index()
-                    st.markdown('## Percent Cover Summary')
-                    st.dataframe(summary_df)
-                    save_to_file = st.button(label='Save file `csv`', key=f'button_overall_summary_key')
-                    if save_to_file:
-                        filename = os.path.join(SURVEY_DIRPATH, f'SEAMS__{SURVEY_NAME}_PERCENT_COVER_SUMMARY.csv')
-                        with st.spinner('Saving file...'):
-                            
-                            df.to_csv(
-                                os.path.join(filename),
-                                encoding='utf-8',
-                                index=False,
-                                )
-                        
-                        if os.path.exists(filename):
-                            st.info(f'File saved: {filename}')
-                            st.balloons()
-                        
-                        else:
-                            st.warning(f'{FRAME_NAME} -- No dotpoints selected or saved')
-
-
-                    
-
+            tabs = st.tabs(['**RESULTS** |', '**RAW DATA** |'])
 
             # Show RAW DATA
             with tabs[-1]:
-                st.write(SURVEY_DATA)            
+                st.write(SURVEY_DATA) 
 
-            # Display frames using loop to avoid repetitive code
-            for i in range(1, 11):  # Assuming 10 tabs are to be created for frames
-                with tabs[i-1]:  # Using i-1 because list indexing starts at 0
-                    FRAME_NAME = FRAME_NAMES[i]
-                    frame_results(FRAME_INTERPRETATION=RANDOM_FRAMES[FRAME_NAME]['INTERPRETATION'])
+            # Show SURVEY SUMMARY
+            with tabs[0]:
+                with st.expander(label='**FRAME SUMMARY**', expanded=True):
+                    _status = [f"{i} | {k}" for i, k in FRAME_NAMES.items() if RANDOM_FRAMES[k]["INTERPRETATION"]["STATUS"] == "COMPLETED"]
+                    
+                    col1, col2 = st.columns([1,1])
+
+                    with col1:
+                        st.write(f'**FRAMES COMPLETED** : {len(_status)} / {len(FRAME_NAMES)}')
+
+                    with col2:
+                        if len(_status) > 0:
+                            st.multiselect(
+                                label='FRAMES COMPLETED', 
+                                options=_status,
+                                default=_status, 
+                                disabled=True,)
+                    
+                    frame_results(
+                            SURVEY_DATA=SURVEY_DATA,
+                            STATION_NAME=STATION_NAME,
+                            FRAME_NAME=FRAME_NAME,                            
+                            key=f'xframe_{FRAME_NAME}'
+                        )
+                with st.expander(label='**SURVEY RESULTS**', expanded=True):
+                    survey_results(SURVEY_DATA)
+
+                    
     else:
         st.info('**No frames to display.**')
         return
@@ -449,9 +527,16 @@ def frame_dashboard(
     FRAME_FILEPATH = frame_selected.get('FRAME_FILEPATH', None)
     FRAME_INTERPRETATION = RANDOM_FRAMES[FRAME_NAME]['INTERPRETATION']
     FRAME_INTERPRETATION['METADATA'] = frame_selected
+    FRAME_INTERPRETATION['FRAME_NAME'] = FRAME_NAME
+    FRAME_INTERPRETATION['FRAME_INDEX'] = FRAME_INDEX
 
     # --------------------
-    if FRAME_NAME not in st.session_state:
+    st.session_state['FRAME_NAME'] = FRAME_NAME
+    st.session_state['FRAME_INDEX'] = FRAME_INDEX
+
+    # --------------------
+    # Required to know if the frame has been dotpoints drawed before.
+    if FRAME_NAME not in st.session_state:        
         st.session_state[FRAME_NAME] = 0
     
     # --------------------
@@ -502,9 +587,10 @@ def frame_dashboard(
 
         with icol2:
             dotpoints_done = FRAME_INTERPRETATION.get('DOTPOINTS_DONE', {})
+            dotpoints_count = FRAME_INTERPRETATION.get('DOTPOINTS', {})
             dotpoints_selected_dict = display_grid(
                 grid=grid, 
-                disable_dotpoints=list(dotpoints_done))
+                disable_dotpoints=list(dotpoints_count.keys()))  # list(dotpoints_done)
             
         
             if len(dotpoints_selected_dict) > 10:
@@ -512,7 +598,7 @@ def frame_dashboard(
                 reset_dotpoints(
                     key='too_many_dotpoints',
                     dotpoint_grid_ids=dotpoints_selected_dict,
-                    dotpoints_done=dotpoints_done,
+                    dotpoints_done=dotpoints_count.keys(),
                     SURVEY_DATA=SURVEY_DATA,
                     SURVEY_DATASTORE=SURVEY_DATASTORE,          
                     FRAME_INTERPRETATION=FRAME_INTERPRETATION,
@@ -590,8 +676,7 @@ def frame_dashboard(
                                 taxa_to_flag.append(flagged_taxa)
             # ------------------
             overall_taxons = {i:True for i in taxa_to_flag}
-            __substrate = {substrate:True}
-            dotpoints_done = FRAME_INTERPRETATION.get('DOTPOINTS_DONE', {})
+            _substrate =  {substrate:True}
             dotpoints_to_save = set(dotpoints_selected_dict).difference(set(dotpoints_done))
             dotpoints = {i : {
                     'DOTPOINT_ID': i,
@@ -633,8 +718,8 @@ def frame_dashboard(
                 else:
                     FRAME_INTERPRETATION['CUSTOM_OPTIONS'].update(custom_options)
             # -------------------
-            overall_substrates = __substrate
-            SURVEY_DATASTORE.storage_strategy.data['APP']['SUBSTRATES'].update(overall_substrates)
+            
+            SURVEY_DATASTORE.storage_strategy.data['APP']['SUBSTRATES'].update(_substrate)
             SURVEY_DATASTORE.storage_strategy.data['APP']['TAXONS'].update(overall_taxons)                        
             # ------------------
             confirm = st.button(label='confirm')
@@ -685,6 +770,7 @@ try:
     build_header()
 
     CURRENT = st.session_state.get('CURRENT', None)
+
     # --------------------
     if CURRENT is None:
         st.info('**Fresh current state.**')
@@ -693,6 +779,7 @@ try:
         STATION_NAME = CURRENT.get('STATION_NAME', None)
         VIDEO_NAME = CURRENT.get('VIDEO_NAME', None)
         SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
+        FRAME_NAME = CURRENT.get('FRAME_NAME', None)
         
         
         if SURVEY_FILEPATH is not None:
@@ -713,10 +800,15 @@ try:
                 substrates=substrates,                      
             )
             # ----
+            if 'FRAME_NAME' in st.session_state:
+                FRAME_NAME = st.session_state['FRAME_NAME']
+            else:
+                FRAME_NAME = None
             show_tabs(
                 SURVEY_NAME=SURVEY_NAME,            
                 SURVEY_FILEPATH=SURVEY_FILEPATH,
-                STATION_NAME=STATION_NAME,               
+                STATION_NAME=STATION_NAME,
+                FRAME_NAME=FRAME_NAME,       
             )
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
