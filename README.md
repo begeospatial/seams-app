@@ -31,7 +31,7 @@ The SEAMS App was developed in Sweden with love at Be GeoSpatial. Be GeoSpatial'
 
 ## Cite
 
-Beltran-Abaunza, J.M., Kågesten, G., Edbom Blomstrand, C., Freire, F. (2023). SEafloor Annotation and Mapping Support (SEAMS) App [Source code]. Be GeoSpatial AB & Sveriges Geologiska Undersokning (SGU). GitHub. Retrieved from https://github.com/begeospatial/seams-app
+Beltran-Abaunza, J.M., Kågesten, G., Edbom Blomstrand, C., Freire, F. Browaldh, E. (2023). SEafloor Annotation and Mapping Support (SEAMS) App [Source code]. Be GeoSpatial AB & Sveriges Geologiska Undersokning (SGU). GitHub. Retrieved from https://github.com/begeospatial/seams-app
 
 ## Disclamer
 
