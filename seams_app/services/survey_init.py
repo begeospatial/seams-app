@@ -1,13 +1,14 @@
 import os
 import streamlit as st
 import pandas as pd
-from bgstools.io import load_yaml, get_files_dictionary, create_new_directory, is_directory_empty, delete_directory_contents, extract_frames, select_random_frames
+from bgstools.io import get_files_dictionary, is_directory_empty, delete_directory_contents, extract_frames, select_random_frames
 from bgstools.utils import colnames_dtype_mapping, get_nested_dict_value
 from bgstools.datastorage import DataStore, YamlStorage
 from bgstools.io.media import get_video_info, convert_codec
+from bgsio import search_yaml_files_by_subdir_filtered, create_subdirectory, load_yaml, create_new_directory, check_directory_exist_and_writable
 from bgstools.stt import display_image_carousel
 import traceback
-
+import yaml
 
 def show_survey_summary(STATIONS:dict):
     """
@@ -483,12 +484,12 @@ def partially_reset_session(keep_keys: list = ['CONFIG', 'SURVEY']):
             st.session_state['APP'][key] = {}
 
 
-def find_yaml_files(directory):
+def find_first_level_yaml_files(directory):
     """
-    Recursively search for all YAML files within a specified directory and its subdirectories.
+    Search for all YAML files within the first-level subdirectories of a specified directory.
 
     Parameters:
-    - directory (str): The root directory from which the search for YAML files begins.
+    - directory (str): The main directory in which the search begins.
 
     Returns:
     - dict: A dictionary where:
@@ -499,30 +500,32 @@ def find_yaml_files(directory):
     - FileNotFoundError: Raised when the specified directory does not exist or is not accessible.
 
     Dependencies:
-    - Requires the os module to be imported for directory walking and path manipulation.
+    - Requires the os module to be imported for directory listing and path manipulation.
 
     Example Usage:
-    >>> find_yaml_files('/path/to/directory')
+    >>> find_first_level_yaml_files('/path/to/directory')
     {
-        'config.yaml': '/path/to/directory/config.yaml',
-        'settings.yaml': '/path/to/directory/subdirectory/settings.yaml',
+        'config.yaml': '/path/to/directory/subdir1/config.yaml',
         ...
     }
 
     Notes:
-    - The function uses os.walk() to iterate over all directories and subdirectories.
+    - The function uses os.listdir() to iterate over the specified directory's first-level subdirectories.
     - Only files with a '.yaml' extension are considered. Other files are ignored.
     - The function will raise an exception immediately if the provided directory does not exist, making it safer for cases where the directory path might be dynamic or user-defined.
     """
+
     # Check if the directory exists
     if not os.path.isdir(directory):
         raise FileNotFoundError(f"The directory {directory} does not exist.")
         
     yaml_files = {}
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith(".yaml"):
-                yaml_files[file] = os.path.join(root, file)
+    for subdir in os.listdir(directory):
+        subdir_path = os.path.join(directory, subdir)
+        if os.path.isdir(subdir_path):
+            for file in os.listdir(subdir_path):
+                if file.endswith(".yaml"):
+                    yaml_files[file] = os.path.join(subdir_path, file)
     return yaml_files
 
 
@@ -604,13 +607,13 @@ def get_SURVEYS_AVAILABLE(surveys_dirpath:str):
       - If no YAML files are found, the function returns None.
 
     Workflow:
-    - The function calls 'find_yaml_files' to get a dictionary of all YAML files in the directory.
+    - The function calls 'find_first_level_yaml_files' to get a dictionary of all YAML files in the directory.
     - For each found YAML file, it extracts the filename without its extension to use as the survey name.
     - It constructs the resulting dictionary with the survey names as keys and their paths as values.
 
     Dependencies:
     - Requires the 'os' module for path manipulation and extracting filename without extension.
-    - Assumes the existence of a 'find_yaml_files' function, which is capable of recursively searching for all YAML files in a given directory.
+    - Assumes the existence of a 'find_first_level_yaml_files' function, which is capable of recursively searching for all YAML files in a given directory.
 
     Notes:
     - This function serves as a helper to map survey names to their respective configuration files, especially useful when initializing or listing available surveys in an application.
@@ -623,12 +626,13 @@ def get_SURVEYS_AVAILABLE(surveys_dirpath:str):
         ...
     }
     """
-    YAML_FILES_AVAILABLE =  find_yaml_files(surveys_dirpath)
+
+  
+    YAML_FILES_AVAILABLE =  find_first_level_yaml_files(surveys_dirpath)
 
     SURVEYS_AVAILABLE = {}
     if YAML_FILES_AVAILABLE is not None and len(YAML_FILES_AVAILABLE)>0:
         for filename, filepath in YAML_FILES_AVAILABLE.items():
-            ## SURVEY_NAME == filename_without_extension
             SURVEY_NAME = os.path.splitext(filename)[0]
             SURVEYS_AVAILABLE[SURVEY_NAME] = filepath
     
@@ -885,6 +889,54 @@ def show_video_player(video_player: st.empty, LOCAL_VIDEO_FILEPATH:str, START_TI
                        start_time=START_TIME_IN_SECONDS if START_TIME_IN_SECONDS is not None else 0) 
 
 
+def save_stations(STATIONS:dict, SURVEY_DIRPATH:str, fileExtension:str = '.yaml') -> dict:
+    """
+    Save station data to individual files with specified extension.
+
+    Args:
+    - STATIONS (dict): A dictionary containing station data.
+    - SURVEY_DIRPATH (str): Base directory path where station data will be saved.
+    - fileExtension (str, optional): File extension for the saved files. Defaults to '.yaml'.
+
+    Returns:
+    - dict: A dictionary mapping site names to their corresponding file paths.
+    """
+    
+    # Ensure that the fileExtension starts with a dot.
+    if not fileExtension.startswith('.'):
+        fileExtension = '.' + fileExtension
+
+    STATIONS_FILEPATHS = {}
+
+    for i, (_, station) in enumerate(STATIONS.items()):
+        siteName = station.get('siteName', None)
+
+        station['BENTHOS_INTERPRETATION'] = {}
+        # Check if the siteName is valid.
+        if siteName and len(siteName) > 0:
+            siteNameToFileName = siteName.strip().replace(' ', '_')
+            subdir = f'STN{str(i).zfill(5)}'
+            STATION_DIRPATH = os.path.join(SURVEY_DIRPATH, 'STATIONS', subdir)
+
+            # Create a new directory for the station if it doesn't exist.
+            if not os.path.exists(STATION_DIRPATH):
+                os.makedirs(STATION_DIRPATH)
+            
+            STATION_FILEPATH = os.path.join(STATION_DIRPATH, f"{siteNameToFileName}{fileExtension}")
+            STATIONS_FILEPATHS[siteName] = STATION_FILEPATH
+
+            # Save the station data to a file.
+            with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
+                yaml.safe_dump(station, f, allow_unicode=True)
+
+    if STATIONS_FILEPATHS:
+        return STATIONS_FILEPATHS
+    else:
+        raise ValueError("No valid stations found to save.")        
+    
+
+
+
 def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
     """
     Interactive data editor in Streamlit for editing and saving survey data.
@@ -968,7 +1020,7 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
         # --------------------
         data_editor = create_data_editor(stations_df, key=f'stations_editor')
         STATIONS = data_editor.set_index('siteName', drop=False).to_dict(orient='index')
-        SURVEY_DATA['STATIONS'] = STATIONS
+
     
         # --------------------
         if _VIDEOS is not None and len(_VIDEOS)>0:
@@ -988,7 +1040,7 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
 
         videos_data_editor_dict = create_data_editor(videos_df, key=f'videos_editor')
         VIDEOS = get_videos_per_station(videos_data_editor_dict)
-        SURVEY_DATA['VIDEOS'] = VIDEOS
+        # SURVEY_DATA['VIDEOS'] = VIDEOS
 
   
         VIDEOS_NOT_IN_STATIONS = {}
@@ -1007,14 +1059,30 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
                 'STATIONS_WITHOUT_VIDEOS': STATIONS_WITHOUT_VIDEOS,
                 'VIDEOS_NOT_IN_STATIONS': VIDEOS_NOT_IN_STATIONS,
                 }
-            SURVEY_DATA['REPORTS'].update(REPORT)
+            # SURVEY_DATA['REPORTS'].update(REPORT)
+
+            if STATIONS_WITH_VIDEOS is not None:
+                # stations handler
+                
+                VIDEO_STATIONS = {station: STATIONS[station] for station in STATIONS if station in STATIONS_WITH_VIDEOS}
+
+                #st.write(VIDEO_STATIONS)
+                STATIONS_FILEPATHS =  save_stations(STATIONS=VIDEO_STATIONS, SURVEY_DIRPATH=SURVEY_DATA['SURVEY']['SURVEY_DIRPATH'])
+                
+                #SURVEY_DATA['STATIONS'] = STATIONS_FILEPATHS
+
+
 
             if STATIONS_WITHOUT_VIDEOS is not None and  len(STATIONS_WITHOUT_VIDEOS)>0:
                 st.warning(f'**Stations without videos:** {STATIONS_WITHOUT_VIDEOS}')
+
+
         
         # --------------------
         save_stations_btn = st.button('save survey data & continue', key=f'save_survey_data')
         if save_stations_btn:
+            st.write(STATIONS_FILEPATHS)
+            
             with st.spinner('Saving survey data...'):
                 try:
                     SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})                    
@@ -1195,7 +1263,7 @@ def show_video_processing(
                                         
                                         SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
                                         st.toast('Data saved. Ready for frames extraction.')
-                                        st.experimental_rerun()
+                                        st.rerun()
                             elif ~REQUIRES_VIDEO_CONVERSION:
                                 VIDEO_FILEPATH = LOCAL_VIDEO_FILEPATH
                                 VIDEO_DIRPATH = os.path.dirname(VIDEO_FILEPATH)
@@ -1507,7 +1575,7 @@ def station_selector(SURVEY_DATA:dict, SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WI
         STATION_NAME = st.selectbox(
             label='**Available station(s):**', 
             options=sorted(AVAILABLE_STATIONS_WITH_VIDEOS), 
-            index=0,
+            #index=0,
             key='station_selector',
             help='Select a station for benthic interpretation.',
             format_func=lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(x, {}) else x,
@@ -1625,9 +1693,10 @@ def run():
                 SURVEY_DATA=SURVEY_DATA,
                 SURVEY_DIRPATH=SURVEY_DIRPATH, 
                 AVAILABLE_STATIONS_WITH_VIDEOS=AVAILABLE_STATIONS_WITH_VIDEOS)
-            STATION_BENTHOS_INTERPRETATION = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {})
+           
+            #STATION_BENTHOS_INTERPRETATION = SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(STATION_NAME, {})
                 
-            
+        """
         with col3:
             if VIDEOS_DIRPATH is not None and os.path.exists(VIDEOS_DIRPATH):
                 AVAILABLE_VIDEOS =  get_available_videos(
@@ -1636,7 +1705,7 @@ def run():
                     VIDEOS_DIRPATH = VIDEOS_DIRPATH, 
                     videos_file_extension = '.mp4')
 
-                if len(SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {})) >0:
+                if len(SURVEY_DATA.get['BENTHOS_INTERPRETATION'].get(STATION_NAME, {})) >0:
                     has_random_frames = 'RANDOM_FRAMES' in STATION_BENTHOS_INTERPRETATION
                     st.session_state['has_random_frames'] = has_random_frames
                 else:
@@ -1665,7 +1734,7 @@ def run():
                 LOCAL_VIDEOS = None
                 AVAILABLE_VIDEOS = None
                 has_local_videos = False
-        
+            """            
         with col4:
             message_col4 = st.empty()
         
