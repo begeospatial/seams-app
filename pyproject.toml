@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "seams-app"
-version = "1.8.2.1"
+version = "1.8.3.1"
 description = "Sveriges Geologiska Undersökning (SGU) - SEafloor Annotation and Mapping Support"
 authors = ["Be GeoSpatial AB <sgu.seams.app@begeospatial.com>"]
 readme = "README.md"
@@ -22,6 +22,7 @@ chardet = "^5.1.0"
 fsspec = "^2023.6.0"
 shapely = "^2.0.1"
 bgstools = "^0.2.1"
+bgsio = "^0.1.4"
 
 
 [build-system]

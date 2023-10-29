@@ -1,9 +1,9 @@
 import os
 import streamlit as st
 import shutil
-from bgstools.io import get_available_services, create_directory_list, check_directory_exist_and_writable, path_exists
+from bgsio import get_available_services, create_directory_list, check_directory_exist_and_writable, path_exists
 from bgstools.stt import build_activities_menu
-from bgstools.io import load_toml_variables, create_subdirectory, create_new_directory
+from bgsio import load_toml_variables, create_subdirectory, create_new_directory
 from bgstools.datastorage import DataStore, YamlStorage
 
 # --------------------
@@ -152,7 +152,7 @@ def delete_subdirectory_with_confirmation(directory_path: str, btn_label: str = 
                     st.session_state['APP']['STATIONS']= {}
                     st.session_state['APP']['VIDEOS']= {}                    
                     st.session_state.pop('SURVEY_DATASTORE', None)
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"An error occurred while deleting the subdirectory: {e}")
                     return False
@@ -216,7 +216,7 @@ def build_sidebar():
     if refresh_button:
         # Clear values from *all* all in-memory and on-disk data caches:
         # st.cache_data.clear()
-        st.experimental_rerun()
+        st.rerun()
         
     # Load the yaml with core services as activities    
     core_activities =  get_available_services(
@@ -345,7 +345,7 @@ def new_survey():
                         st.toast(f'Survey: **{SURVEY_NAME}**  `SURVEY_DATASTORE` created and initialized')
                         # --------------------                        
                     st.success(f'Survey: **{SURVEY_NAME}** created')
-                    st.experimental_rerun()                    
+                    st.rerun()                    
                         
                 else:
 
