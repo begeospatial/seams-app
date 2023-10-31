@@ -22,14 +22,3 @@
   dtype: float
   unit: meters
   description: Maximum depth in meters of the site or station. A measurementType__maximum_depth_in_meters column is required in the measurement table if this column is used.
-- colname: test01Column_text
-  dtype: str
-  description: testing columns
-- colname: test02Column_float
-  dtype: float
-  description: testing columns
-- colname: test03Column
-  dtype: bool
-  description: testing columns
-
-
