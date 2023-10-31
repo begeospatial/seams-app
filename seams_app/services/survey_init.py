@@ -1807,14 +1807,8 @@ try:
         with x2:
             st.write(st.session_state)
 
-    selection_boxes(
-        survey_selector_box(
-            SURVEYS_AVAILABLE=SURVEYS_AVAILABLE),
-        stations_selector=None,
-        videos_selector=None
-            )
     
-    #run()
+    run()
 
 except Exception as e:
     trace_error = traceback.print_exc()
