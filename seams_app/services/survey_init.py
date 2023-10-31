@@ -685,7 +685,7 @@ def load_datastore(survey_filepath:str):
     return datastore
 
 
-def get_survey_selected(SURVEYS_AVAILABLE:dict)->tuple:
+def survey_selector_box(SURVEYS_AVAILABLE:dict)->tuple:
     """
     Presents a Streamlit selectbox widget for users to choose a survey from a list of available ones.
 
@@ -1595,6 +1595,27 @@ def station_selector(SURVEY_DATA:dict, SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WI
         return STATION_NAME, STATION_DIRPATH
 
 
+def get_available_surveys():
+    SURVEYS_DIRPATH = get_nested_dict_value(st.session_state, ['APP', 'CONFIG', 'SURVEYS_DIRPATH'])    
+    SURVEYS_AVAILABLE = get_SURVEYS_AVAILABLE(SURVEYS_DIRPATH)
+    return SURVEYS_AVAILABLE
+
+def selection_boxes(surveys_selector: object, stations_selector:object, videos_selector:object):
+
+    col1, col2, col3, col4 = st.columns([2,1,2,1])
+
+    with col1:
+        SURVEY_NAME, SURVEY_FILEPATH = surveys_selector()
+        st.write(SURVEY_NAME, SURVEY_FILEPATH)
+    
+    with col2:
+        stations_selector()
+
+    with col3:
+        videos_selector()
+
+
+
 def run():
     """
     Main execution function for a Streamlit-based application to manage and view video-based survey data.
@@ -1651,7 +1672,7 @@ def run():
         col1, col2, col3, col4 = st.columns([2,1,2,1])
 
         with col1:
-            SURVEY_SELECTED = get_survey_selected(SURVEYS_AVAILABLE)           
+            SURVEY_SELECTED = survey_selector_box(SURVEYS_AVAILABLE)           
             if SURVEY_SELECTED is not None:
                 SURVEY_NAME, SURVEY_FILEPATH = SURVEY_SELECTED
                 SURVEY_DIRPATH = os.path.dirname(SURVEY_FILEPATH)
@@ -1778,7 +1799,22 @@ def run():
 
 try:
     build_header()
-    run()
+    SURVEYS_AVAILABLE = get_available_surveys()
+    with st.expander(label='debug'):
+        x1, x2 = st.columns(2)
+        with x1:
+            st.write(SURVEYS_AVAILABLE)
+        with x2:
+            st.write(st.session_state)
+
+    selection_boxes(
+        survey_selector_box(
+            SURVEYS_AVAILABLE=SURVEYS_AVAILABLE),
+        stations_selector=None,
+        videos_selector=None
+            )
+    
+    #run()
 
 except Exception as e:
     trace_error = traceback.print_exc()
