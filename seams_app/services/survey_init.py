@@ -9,6 +9,31 @@ from bgsio import search_yaml_files_by_subdir_filtered, create_subdirectory, loa
 from bgstools.stt import display_image_carousel
 import traceback
 import yaml
+from h3 import h3
+
+
+def lat_lng_to_h3(lat:float, lng:float, resolution=10):
+    """
+    Convert latitude and longitude to H3 index.
+    
+    Parameters:
+        lat (float): Latitude of the location.
+        lng (float): Longitude of the location.
+        resolution (int): Resolution level of the H3 index, between 0 and 15.
+            the default resolution is 10 which is a close approximation to a 5-meter grid size.
+
+    Returns:
+        str: H3 index in hexadecimal string format.
+    """
+    try:
+        h3_index = h3.geo_to_h3(lat, lng, resolution)
+        return h3_index
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+
 
 def show_survey_summary(STATIONS:dict):
     """
@@ -248,6 +273,8 @@ def create_data_editor(df:pd.DataFrame, key:str):
     - This function simplifies the process of displaying a data editor in Streamlit and handling the edited data.
       It can be used in Streamlit apps that require data input or editing capabilities.
     """
+    
+    
     data_editor = st.data_editor(
         data=df, 
         num_rows='dynamic', 
@@ -888,8 +915,31 @@ def show_video_player(video_player: st.empty, LOCAL_VIDEO_FILEPATH:str, START_TI
     video_player.video(LOCAL_VIDEO_FILEPATH, 
                        start_time=START_TIME_IN_SECONDS if START_TIME_IN_SECONDS is not None else 0) 
 
+# NEW:
+def get_subdir_name(file_path):
+    """
+    Extract the subdirectory name right below a file.
 
-def save_stations(STATIONS:dict, SURVEY_DIRPATH:str, fileExtension:str = '.yaml') -> dict:
+    Parameters:
+        file_path (str): Full path of the file.
+
+    Returns:
+        str: Name of the subdirectory right below the file.
+    """
+    try:
+        # Get the directory name where the file is located
+        dir_path = os.path.dirname(file_path)
+        
+        # Get the last part of the directory name
+        subdir_name = os.path.basename(dir_path)
+        
+        return subdir_name
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+    
+
+def save_stations(STATIONS:dict, VIDEOS:dict, SURVEY_DIRPATH:str, fileExtension:str = '.yaml') -> dict:
     """
     Save station data to individual files with specified extension.
 
@@ -908,14 +958,19 @@ def save_stations(STATIONS:dict, SURVEY_DIRPATH:str, fileExtension:str = '.yaml'
 
     STATIONS_FILEPATHS = {}
 
-    for i, (_, station) in enumerate(STATIONS.items()):
-        siteName = station.get('siteName', None)
+    for i, (_, _station) in enumerate(STATIONS.items()):
+        siteName = _station.get('siteName', None)
+        H3_index =  h3.geo_to_h3(_station['decimalLatitude'], _station['decimalLongitude'], 10)
+        _station['H3_index'] = H3_index
+        
+        station = {'METADATA': _station}
 
+        station['VIDEOS'] = VIDEOS[siteName]
         station['BENTHOS_INTERPRETATION'] = {}
         # Check if the siteName is valid.
         if siteName and len(siteName) > 0:
             siteNameToFileName = siteName.strip().replace(' ', '_')
-            subdir = f'STN{str(i).zfill(5)}'
+            subdir = f'{H3_index}_{str(i).zfill(5)}'
             STATION_DIRPATH = os.path.join(SURVEY_DIRPATH, 'STATIONS', subdir)
 
             # Create a new directory for the station if it doesn't exist.
@@ -923,19 +978,41 @@ def save_stations(STATIONS:dict, SURVEY_DIRPATH:str, fileExtension:str = '.yaml'
                 os.makedirs(STATION_DIRPATH)
             
             STATION_FILEPATH = os.path.join(STATION_DIRPATH, f"{siteNameToFileName}{fileExtension}")
-            STATIONS_FILEPATHS[siteName] = STATION_FILEPATH
+            
 
+            if os.path.exists(STATION_FILEPATH):
+                STATIONS_FILEPATHS[siteName] = STATION_FILEPATH
+
+                # Save the station data to a file.
+                saved_station = load_yaml(STATION_FILEPATH)
+                keys_set = set(saved_station.keys()) | set(station.keys())
+                # UPDATING saved_station with station
+                updated_station = {k: station.get(k, saved_station[k]) for k in keys_set}
+                # Ensuring that we allways keep the saved data from BENTHOS_INTEPRETATION
+                updated_station['BENTHOS_INTERPRETATION'] = saved_station['BENTHOS_INTERPRETATION']
+            else:
+                updated_station = station
+            
             # Save the station data to a file.
             with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
-                yaml.safe_dump(station, f, allow_unicode=True)
+                yaml.safe_dump(updated_station, f, allow_unicode=True)
 
-    if STATIONS_FILEPATHS:
+
+    if len(STATIONS_FILEPATHS)>0:
+        st.session_state['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
         return STATIONS_FILEPATHS
     else:
         raise ValueError("No valid stations found to save.")        
+
+# NEW:
+def get_available_stations(STATIONS_DIRPATH:str):
+    if os.path.isdir(STATIONS_DIRPATH):
+        _stations = find_first_level_yaml_files(STATIONS_DIRPATH)
+        stations = {os.path.splitext(filename)[0]: _stations[filename] for filename in _stations}
+        return stations
+    else:
+        return
     
-
-
 
 def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
     """
@@ -971,6 +1048,8 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
        - After saving, validates the survey data to ensure stations are linked to videos and vice versa.
        - Presents warnings for any inconsistencies found.
     """
+
+    # FUTURE: DEPRECIATED STATIONS AND VIDEOS FROM SURVEY_DATA
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
         SURVEY_NAME= SURVEY_DATA.get('SURVEY', None).get('SURVEY_NAME', None)
         _STATIONS = SURVEY_DATA.get('STATIONS', {})
@@ -1018,6 +1097,12 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
                 stations_df = pd.concat([stations_df, pd.DataFrame(columns= sorted(_dtype_mapping.keys()), ).astype(_dtype_mapping)], axis=1)
 
         # --------------------
+        # NEW: Addong h3_index
+        #stations_df['h3_index'] = None
+        
+        #= list(map(lat_lng_to_h3, stations_df[], stations_df['decimalLongitude']))
+        # stations_df.apply(lambda row: lat_lng_to_h3(row['latitude'], row['longitude']), axis=1)
+
         data_editor = create_data_editor(stations_df, key=f'stations_editor')
         STATIONS = data_editor.set_index('siteName', drop=False).to_dict(orient='index')
 
@@ -1040,8 +1125,9 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
 
         videos_data_editor_dict = create_data_editor(videos_df, key=f'videos_editor')
         VIDEOS = get_videos_per_station(videos_data_editor_dict)
-        # SURVEY_DATA['VIDEOS'] = VIDEOS
 
+        # FUTURE: DEPRECIATE
+        #SURVEY_DATA['VIDEOS'] = VIDEOS
   
         VIDEOS_NOT_IN_STATIONS = {}
         for siteName, v in VIDEOS.items():
@@ -1061,27 +1147,31 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
                 }
             # SURVEY_DATA['REPORTS'].update(REPORT)
 
+            st.info(f'Number of stations with videos: {len(STATIONS_WITH_VIDEOS)}')
+
             if STATIONS_WITH_VIDEOS is not None:
                 # stations handler
                 
                 VIDEO_STATIONS = {station: STATIONS[station] for station in STATIONS if station in STATIONS_WITH_VIDEOS}
-
-                #st.write(VIDEO_STATIONS)
-                STATIONS_FILEPATHS =  save_stations(STATIONS=VIDEO_STATIONS, SURVEY_DIRPATH=SURVEY_DATA['SURVEY']['SURVEY_DIRPATH'])
-                
                 #SURVEY_DATA['STATIONS'] = STATIONS_FILEPATHS
-
-
 
             if STATIONS_WITHOUT_VIDEOS is not None and  len(STATIONS_WITHOUT_VIDEOS)>0:
                 st.warning(f'**Stations without videos:** {STATIONS_WITHOUT_VIDEOS}')
 
-
         
         # --------------------
         save_stations_btn = st.button('save survey data & continue', key=f'save_survey_data')
+        
+        IS_SURVEY_DATA_AVAILABLE = False        
         if save_stations_btn:
-            st.write(STATIONS_FILEPATHS)
+            if len(VIDEO_STATIONS) >0:
+                STATIONS_FILEPATHS =  save_stations(STATIONS=VIDEO_STATIONS, VIDEOS=VIDEOS, SURVEY_DIRPATH=SURVEY_DATA['SURVEY']['SURVEY_DIRPATH'])
+                SURVEY_DATA['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
+                st.session_state['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
+                IS_SURVEY_DATA_AVAILABLE = True
+            else:
+                IS_SURVEY_DATA_AVAILABLE = False
+
             
             with st.spinner('Saving survey data...'):
                 try:
@@ -1093,11 +1183,6 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
                      
         else:
             st.info('**Do not forget to save the survey data when you are done editing.**')
-
-        if len(STATIONS)>0 and len(VIDEOS)>0:
-            IS_SURVEY_DATA_AVAILABLE = True
-        else:
-            IS_SURVEY_DATA_AVAILABLE = False
 
         return IS_SURVEY_DATA_AVAILABLE
         # --------------------
@@ -1469,59 +1554,6 @@ def get_available_videos(SURVEY_DATA:dict, STATION_NAME:str, VIDEOS_DIRPATH:str,
             AVAILABLE_VIDEOS = [v for v in SET_EXPECTED_VIDEOS if v in SET_LOCAL_VIDEOS]
             return AVAILABLE_VIDEOS
 
-def get_available_stations_with_videos(SURVEY_DATA:dict, VIDEOS_DIRPATH:str, videos_file_extension:str = '.mp4')->dict:
-    """
-    Determines which stations have videos available in a given directory based on 
-    the survey data's registered videos for each station.
-
-    Parameters:
-    ----------
-    SURVEY_DATA : dict
-        A dictionary containing the survey data. This data should have a key 'VIDEOS' 
-        which contains registered video names for various stations.
-    
-    VIDEOS_DIRPATH : str
-        The directory path where video files are located.
-
-    videos_file_extension : str, optional
-        The file extension for videos. Defaults to '.mp4'.
-
-    Returns:
-    -------
-    dict:
-        A dictionary where keys are station names and values are boolean (True) 
-        indicating that at least one video for the station is present in the 
-        given directory. Stations without available videos are not included in the output.
-
-    Overview:
-    --------
-    This function performs the following operations:
-    1. Retrieves a list of all videos in the specified directory with the given file extension.
-    2. Iterates over the expected stations and their videos from SURVEY_DATA.
-    3. Checks if any video for a station is available in the local directory.
-    4. If a video for a station is found, that station is marked as available in the result.
-
-    Notes:
-    -----
-    The function relies on the assumption that video names in SURVEY_DATA under 'VIDEOS' do 
-    not include the file extension. The function appends the file extension to the video names 
-    from the directory to make the comparison. 
-
-    The function sets the value for available stations to `True` in the resulting dictionary. 
-    Stations without available videos are not present in the dictionary.
-    """
-    AVAILABLE_STATIONS_WITH_VIDEOS = {}
-    LOCAL_VIDEOS =  get_files_dictionary(VIDEOS_DIRPATH, file_extension=videos_file_extension)
-    LOCAL_VIDEOS = {f'{k}{videos_file_extension}': v for k, v in LOCAL_VIDEOS.items()}
-
-    EXPECTED_STATIONS_WITH_VIDEOS = SURVEY_DATA.get('VIDEOS', {})
-    
-    for station_name, station_videos in EXPECTED_STATIONS_WITH_VIDEOS.items():
-        for video_key in station_videos.keys():
-            if video_key in LOCAL_VIDEOS:
-                AVAILABLE_STATIONS_WITH_VIDEOS[station_name] = True
-    
-    return AVAILABLE_STATIONS_WITH_VIDEOS        
 
 
 def station_selector(SURVEY_DATA:dict, SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WITH_VIDEOS:dict, suffix:str = '***'):
@@ -1581,7 +1613,7 @@ def station_selector(SURVEY_DATA:dict, SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WI
             format_func=lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(x, {}) else x,
             )
         # --------------------
-        st.session_state['STATIONS'] = STATIONS
+        #st.session_state['STATIONS'] = STATIONS
         # --------------------
         STATION_DIRPATH = os.path.join(SURVEY_DIRPATH, STATION_NAME)
         if STATION_DIRPATH is not None and not os.path.exists(STATION_DIRPATH):
@@ -1684,6 +1716,7 @@ def run():
                     st.session_state['APP']['CONFIG']['VIDEOS_DIRPATH'] = VIDEOS_DIRPATH
 
                 try:
+                    # DATASTORE is initialized here
                     SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
                     SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data.get('APP', {})
                 except Exception as e:
@@ -1696,26 +1729,30 @@ def run():
 
         
         with col2:
-            AVAILABLE_STATIONS_WITH_VIDEOS = get_available_stations_with_videos(
-                    SURVEY_DATA=SURVEY_DATA, 
-                    VIDEOS_DIRPATH=VIDEOS_DIRPATH, 
-                    videos_file_extension = '.mp4')
+            STATIONS_DIRPATH = os.path.join(SURVEY_DIRPATH, 'STATIONS')
+            if os.path.isdir(STATIONS_DIRPATH):
+                STATIONS_AVAILABLE = get_available_stations(STATIONS_DIRPATH=STATIONS_DIRPATH)
+            else:
+                STATIONS_AVAILABLE = {}
             
-            __STATIONS = SURVEY_DATA.get('STATIONS', {})
+            
             # ---------
-            show_survey_summary(STATIONS=AVAILABLE_STATIONS_WITH_VIDEOS)
+            show_survey_summary(STATIONS=STATIONS_AVAILABLE)
             # ------ 
-            if len(__STATIONS)==0:
+            if len(STATIONS_AVAILABLE)==0:
                 st.warning('**:red[Survey with no stations]**. Use the **Stations data editor** to add stations data and station video names to the survey. **Refresh the app and try again.**')
 
-                
-
-            STATION_NAME, STATION_DIRPATH = station_selector(
-                SURVEY_DATA=SURVEY_DATA,
-                SURVEY_DIRPATH=SURVEY_DIRPATH, 
-                AVAILABLE_STATIONS_WITH_VIDEOS=AVAILABLE_STATIONS_WITH_VIDEOS)
-           
-            #STATION_BENTHOS_INTERPRETATION = SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(STATION_NAME, {})
+            else:                
+                STATION_NAME = st.selectbox(
+                    label='**Available station(s):**', 
+                    options=STATIONS_AVAILABLE.keys(), 
+                    #index=0,
+                    key='station_selector',
+                    help='Select a station for benthic interpretation.',
+                    format_func=lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(x, {}) else x,
+                )
+        
+       
                 
         """
         with col3:
@@ -1758,7 +1795,7 @@ def run():
             """            
         with col4:
             message_col4 = st.empty()
-        
+        """
         # --------------------------
         if has_random_frames and has_local_videos:
             message_col4.success(f'**`{suffix}`** | has random frames extracted')
@@ -1771,7 +1808,7 @@ def run():
                 STATION_NAME=STATION_NAME,
                 VIDEO_NAME=VIDEO_NAME,
                 codec = st.session_state.get('codec', None)) 
-        
+        """
         LOCAL_VIDEOS =  get_files_dictionary(VIDEOS_DIRPATH, file_extension='.mp4')
 
         if  len(SURVEY_DATA['VIDEOS'])>0 and len(SURVEY_DATA['STATIONS'])>0 and not has_random_frames:
