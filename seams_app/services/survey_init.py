@@ -1052,8 +1052,14 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
     # FUTURE: DEPRECIATED STATIONS AND VIDEOS FROM SURVEY_DATA
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
         SURVEY_NAME= SURVEY_DATA.get('SURVEY', None).get('SURVEY_NAME', None)
-        _STATIONS = SURVEY_DATA.get('STATIONS', {})
-        _VIDEOS = SURVEY_DATA.get('VIDEOS', {})
+        STATIONS_FILEPATHS = SURVEY_DATA.get('STATIONS_FILEPATHS', {})
+
+        if len(STATIONS_FILEPATHS) >0:
+            _STATIONS = {station: load_yaml(filepath)['METADATA'] for station, filepath in STATIONS_FILEPATHS.items()}
+            _VIDEOS = {station: load_yaml(filepath)['VIDEOS'] for station, filepath in STATIONS_FILEPATHS.items()}
+        else:
+            _STATIONS = {}
+            _VIDEOS = {}
 
 
     # Stations
@@ -1097,12 +1103,8 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
                 stations_df = pd.concat([stations_df, pd.DataFrame(columns= sorted(_dtype_mapping.keys()), ).astype(_dtype_mapping)], axis=1)
 
         # --------------------
-        # NEW: Addong h3_index
-        #stations_df['h3_index'] = None
+       
         
-        #= list(map(lat_lng_to_h3, stations_df[], stations_df['decimalLongitude']))
-        # stations_df.apply(lambda row: lat_lng_to_h3(row['latitude'], row['longitude']), axis=1)
-
         data_editor = create_data_editor(stations_df, key=f'stations_editor')
         STATIONS = data_editor.set_index('siteName', drop=False).to_dict(orient='index')
 
