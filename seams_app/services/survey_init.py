@@ -1278,8 +1278,6 @@ def show_video_processing(
 
     Parameters:
     ----------
-    SURVEY_NAME : str
-        The name of the survey being processed.
     
     STATION_NAME : str
         The name of the station where the video was taken.
@@ -1330,10 +1328,12 @@ def show_video_processing(
     This function is specifically designed for use within a Streamlit app and may require modifications 
     if used in a different context.
     """
-    if SURVEY_DATA is not None and len(SURVEY_DATA)>0:        
-        if LOCAL_VIDEOS is not None and  len(LOCAL_VIDEOS)>0:
-            LOCAL_VIDEOS = {f'{k}{videos_file_extension}': v for k, v in LOCAL_VIDEOS.items()}
+    if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
+        VIDEOS_DIRPATH = SURVEY_DATA['SURVEY']['VIDEOS_DIRPATH']
+        VIDEO_NAMES  = STATION_DATA.get('VIDEOS', {})
+        LOCAL_VIDEOS = {k: os.path.join(VIDEOS_DIRPATH, k) for k in VIDEO_NAMES.keys()}
 
+        if LOCAL_VIDEOS is not None and len(LOCAL_VIDEOS)>0:
             
             with st.expander('**Video preprocessing:**', expanded=True):
                 LOCAL_VIDEO_FILEPATH = LOCAL_VIDEOS.get(VIDEO_NAME, None)
@@ -1483,9 +1483,7 @@ def show_video_processing(
                                 _RANDOM_FRAMES = select_random_frames(frames=_FRAMES, num_frames=10)
                                 
                                 if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)==10:
-                                    SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'] = _RANDOM_FRAMES
-                                    #SURVEY_DATASTORE.storage_strategy.data['APP'] = SURVEY_DATA
-                                    #SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
+                                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = _RANDOM_FRAMES
                                     frames_message_02.success(f'Frames extracted successfully. Total frames: {len(_FRAMES)}. Refresh the app.')
                                 else:
                                     _RANDOM_FRAMES = None
