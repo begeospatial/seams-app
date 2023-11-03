@@ -11,7 +11,6 @@ from bgsio import search_yaml_files_by_subdir_filtered, create_subdirectory, loa
 import traceback
 import yaml
 from h3 import h3
-from seams_utils import find_first_level_yaml_files, get_surveys_available
 
 
 def extract_sequence(filename: str) -> str:
@@ -526,6 +525,49 @@ def partially_reset_session(keep_keys: list = ['CONFIG', 'SURVEY']):
             st.session_state['APP'][key] = {}
 
 
+def find_first_level_yaml_files(directory):
+    """
+    Search for all YAML files within the first-level subdirectories of a specified directory.
+
+    Parameters:
+    - directory (str): The main directory in which the search begins.
+
+    Returns:
+    - dict: A dictionary where:
+        - keys: filenames of the discovered YAML files.
+        - values: absolute paths to the corresponding YAML files.
+
+    Raises:
+    - FileNotFoundError: Raised when the specified directory does not exist or is not accessible.
+
+    Dependencies:
+    - Requires the os module to be imported for directory listing and path manipulation.
+
+    Example Usage:
+    >>> find_first_level_yaml_files('/path/to/directory')
+    {
+        'config.yaml': '/path/to/directory/subdir1/config.yaml',
+        ...
+    }
+
+    Notes:
+    - The function uses os.listdir() to iterate over the specified directory's first-level subdirectories.
+    - Only files with a '.yaml' extension are considered. Other files are ignored.
+    - The function will raise an exception immediately if the provided directory does not exist, making it safer for cases where the directory path might be dynamic or user-defined.
+    """
+
+    # Check if the directory exists
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f"The directory {directory} does not exist.")
+        
+    yaml_files = {}
+    for subdir in os.listdir(directory):
+        subdir_path = os.path.join(directory, subdir)
+        if os.path.isdir(subdir_path):
+            for file in os.listdir(subdir_path):
+                if file.endswith(".yaml"):
+                    yaml_files[file] = os.path.join(subdir_path, file)
+    return yaml_files
 
 
 def DEPRECIATED_process_yaml_files(yaml_files):
@@ -591,7 +633,52 @@ def DEPRECIATED_process_yaml_files(yaml_files):
     return yaml_files
 
 
+def get_SURVEYS_AVAILABLE(surveys_dirpath:str):
+    """
+    Retrieve a dictionary of available surveys in a specified directory and its subdirectories by finding all YAML files.
 
+    Parameters:
+    - surveys_dirpath (str): The directory path where the search for YAML survey files should begin.
+
+    Returns:
+    - dict or None: 
+      - A dictionary where:
+          - keys: names of the surveys (derived from the YAML filename without its extension).
+          - values: absolute paths to the corresponding YAML survey files.
+      - If no YAML files are found, the function returns None.
+
+    Workflow:
+    - The function calls 'find_first_level_yaml_files' to get a dictionary of all YAML files in the directory.
+    - For each found YAML file, it extracts the filename without its extension to use as the survey name.
+    - It constructs the resulting dictionary with the survey names as keys and their paths as values.
+
+    Dependencies:
+    - Requires the 'os' module for path manipulation and extracting filename without extension.
+    - Assumes the existence of a 'find_first_level_yaml_files' function, which is capable of recursively searching for all YAML files in a given directory.
+
+    Notes:
+    - This function serves as a helper to map survey names to their respective configuration files, especially useful when initializing or listing available surveys in an application.
+
+    Example Usage:
+    >>> get_SURVEYS_AVAILABLE('/path/to/surveys/')
+    {
+        'SurveyA': '/path/to/surveys/SurveyA.yaml',
+        'SurveyB': '/path/to/surveys/subdir/SurveyB.yaml',
+        ...
+    }
+    """
+
+  
+    YAML_FILES_AVAILABLE =  find_first_level_yaml_files(surveys_dirpath)
+
+    SURVEYS_AVAILABLE = {}
+    if YAML_FILES_AVAILABLE is not None and len(YAML_FILES_AVAILABLE)>0:
+        for filename, filepath in YAML_FILES_AVAILABLE.items():
+            SURVEY_NAME = os.path.splitext(filename)[0]
+            SURVEYS_AVAILABLE[SURVEY_NAME] = filepath
+    
+    if len(SURVEYS_AVAILABLE)>0:
+        return SURVEYS_AVAILABLE
 
 
 st.cache_data()
@@ -641,7 +728,7 @@ def load_datastore(survey_filepath:str):
 
 
 
-def survey_selector_box(SURVEYS_AVAILABLE:dict, index:int = 0, format_func: callable = lambda x:f'{x}')->tuple:
+def survey_selector_box(SURVEYS_AVAILABLE:dict)->tuple:
     """
     Presents a Streamlit selectbox widget for users to choose a survey from a list of available ones.
 
@@ -676,10 +763,10 @@ def survey_selector_box(SURVEYS_AVAILABLE:dict, index:int = 0, format_func: call
         SURVEY_NAME = st.selectbox(
             label='**Available survey(s):**', 
             options=sorted(list(SURVEYS_AVAILABLE.keys())), 
-            index=index,
+            index=0,
             key='survey_selector',
             help='Select a benthic interpretation survey.',
-            format_func=format_func,
+            
             )
         
         SURVEY_FILEPATH = SURVEYS_AVAILABLE[SURVEY_NAME]
@@ -1537,29 +1624,9 @@ def get_available_videos(SURVEY_DATA:dict, STATION_NAME:str, VIDEOS_DIRPATH:str,
 
 def get_available_surveys():
     SURVEYS_DIRPATH = get_nested_dict_value(st.session_state, ['APP', 'CONFIG', 'SURVEYS_DIRPATH'])    
-    SURVEYS_AVAILABLE = get_surveys_available(SURVEYS_DIRPATH)
+    SURVEYS_AVAILABLE = get_SURVEYS_AVAILABLE(SURVEYS_DIRPATH)
     return SURVEYS_AVAILABLE
 
-
-def stations_selector_box(STATIONS_AVAILABLE:dict, index:int = 0, format_func:callable = lambda x:f'{x}' ):
-    # lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(x, {}) else x,
-    if STATIONS_AVAILABLE is not None and len(STATIONS_AVAILABLE)>0:
-            
-        STATION_NAME = st.selectbox(
-                        label='**Available station(s):**', 
-                        options=STATIONS_AVAILABLE.keys(), 
-                        index=index,
-                        key='station_selector',
-                        help='Select a station for benthic interpretation.',
-                        format_func=format_func
-                    )
-        STATION_FILEPATH = STATIONS_AVAILABLE[STATION_NAME]
-        
-    else:
-        STATION_NAME = None
-        STATION_FILEPATH = None
-
-    return STATION_NAME, STATION_FILEPATH
 
 
 def run():
@@ -1603,7 +1670,7 @@ def run():
     # --------------------
     SURVEYS_DIRPATH = get_nested_dict_value(st.session_state, ['APP', 'CONFIG', 'SURVEYS_DIRPATH'])
     VIDEOS_DIRPATH = get_nested_dict_value(st.session_state, ['APP', 'CONFIG', 'VIDEOS_DIRPATH'])
-    SURVEYS_AVAILABLE = get_surveys_available(SURVEYS_DIRPATH)
+    SURVEYS_AVAILABLE = get_SURVEYS_AVAILABLE(SURVEYS_DIRPATH)
     suffix = '***'
     st.session_state['suffix'] = suffix
 
@@ -1750,69 +1817,16 @@ def run():
 
 try:
     build_header()
-    SURVEY_NAME = None
-    SURVEYS_AVAILABLE = None
-    SURVEY_DATASTORE = None
-    SURVEY_DATA = None
-    STATIONS_AVAILABLE = None
-    VIDEOS_AVAILABLE = None
-    STATION_NAME = None
-    STATION_FILEPATH = None
-    show_stations_data_editor = False
-
-
-    col1, col2, col3 = st.columns([1,1,1])
-
-    with col1:
-        SURVEYS_AVAILABLE = get_available_surveys()
-        if SURVEYS_AVAILABLE is not None and len(SURVEYS_AVAILABLE)>0:
-            SURVEY_NAME, SURVEY_FILEPATH = survey_selector_box(
-                SURVEYS_AVAILABLE, 
-                index=0,
-                format_func=lambda x: f'{x}')
-
-            try:
-                # DATASTORE is initialized here
-                SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
-                SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data.get('APP', {})
-            except Exception as e:
-                st.error(f'An error ocurred loading the survey data. Check the **<survey_file.yaml>** is not empty. If empty, please delete the file and its subdirectory and start a new survey. **{e}**')
-                SURVEY_DATA = {}
-            # --------------------
-        else:
-            st.warning('**No surveys available**. Create a new survey using the **Survey data management** sidebar menu.')
-    
-    with col2:            
-        if SURVEY_NAME is not None:
-            SURVEY_DIRPATH = os.path.dirname(SURVEY_FILEPATH)
-            STATIONS_DIRPATH = os.path.join(SURVEY_DIRPATH, 'STATIONS')
-            if os.path.isdir(STATIONS_DIRPATH):
-                STATIONS_AVAILABLE = get_available_stations(STATIONS_DIRPATH=STATIONS_DIRPATH)
-            else:
-                create_new_directory(STATIONS_DIRPATH)
-                STATIONS_AVAILABLE = {}
-            
-            if STATIONS_AVAILABLE is not None and len(STATIONS_AVAILABLE)>0:
-                show_survey_summary(STATIONS=STATIONS_AVAILABLE)
-
-                STATION_NAME, STATION_FILEPATH = stations_selector_box(
-                    STATIONS_AVAILABLE, 
-                    index=0,
-                    format_func=lambda x:f'{x}')
-            else:
-                st.warning('**:red[Survey with no stations]**. Use the **Stations data editor** to add stations data and station video names to the survey. **Refresh the app and try again.**')
-                show_stations_data_editor = True
-    
-    with col3:
-        st.write(STATION_NAME, STATION_FILEPATH)
-    
-    # ----
-    st.write(SURVEY_DATA)
+    SURVEYS_AVAILABLE = get_available_surveys()
+    with st.expander(label='debug'):
+        x1, x2 = st.columns(2)
+        with x1:
+            st.write(SURVEYS_AVAILABLE)
+        with x2:
+            st.write(st.session_state)
 
     
-    
-    
-    #run()
+    run()
 
 except Exception as e:
     trace_error = traceback.print_exc()
