@@ -766,11 +766,10 @@ def survey_selector_box(SURVEYS_AVAILABLE:dict)->tuple:
             index=0,
             key='survey_selector',
             help='Select a benthic interpretation survey.',
+            
             )
         
         SURVEY_FILEPATH = SURVEYS_AVAILABLE[SURVEY_NAME]
-        
-
         return SURVEY_NAME, SURVEY_FILEPATH
     else:
         return None
@@ -833,12 +832,13 @@ def display_image_carousel(image_paths_dict: dict, RANDOM_FRAMES:dict = {}):
 
 def show_random_frames(
         has_random_frames:bool, 
-        SURVEY_DATASTORE:DataStore, 
-        SURVEY_DATA:dict,
+
         SURVEY_NAME:str,
         SURVEY_FILEPATH:str,
         VIDEO_NAME:str, 
-        STATION_NAME:str, 
+        STATION_NAME:str,
+        STATION_FILEPATH:str,
+        STATION_DATA:dict, 
         codec:str = None, 
         suffix:str = '***'):
     """
@@ -868,11 +868,20 @@ def show_random_frames(
     """    
 
     if has_random_frames:
-        FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {}).get('FRAMES', None)
+
+        FRAMES_DIRPATH = STATION_DATA['BENTHOS_INTERPRETATION'].get('FRAMES_DIRPATH', None)
+        AVAILABLE_FRAMES = get_files_dictionary(
+            FRAMES_DIRPATH, 
+            file_extension='png', 
+            keep_extension_in_key=True)
+        
+        # NEW:
+        AVAILABLE_FRAMES = {extract_sequence(filename): AVAILABLE_FRAMES[filename] for filename in sorted(AVAILABLE_FRAMES.keys())}
+        
         # Aqui esta el error
-        RANDOM_FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {}).get('RANDOM_FRAMES', None)
+        RANDOM_FRAMES = STATION_DATA['BENTHOS_INTERPRETATION'].get('RANDOM_FRAMES', None)
         st.session_state['RANDOM_FRAMES_IDS'] = list(RANDOM_FRAMES.keys())
-        _VIDEO_NAME = SURVEY_DATA['BENTHOS_INTERPRETATION'].get(STATION_NAME, {}).get('VIDEO_NAME', None)            
+        _VIDEO_NAME = STATION_DATA['BENTHOS_INTERPRETATION'].get('VIDEO_NAME', None)            
         if _VIDEO_NAME == VIDEO_NAME and RANDOM_FRAMES is not None and len(RANDOM_FRAMES)>0:
             show_station_is_ready = True
             is_ready_for_interpretation = False
@@ -882,7 +891,7 @@ def show_random_frames(
                     **Step 2:** Refine the automatic selection process of random frames as needed to ensure a total of 10 frames are chosen.
                     **Step 3:** Verify the accuracy of the selected frames by checking the **:green[ready for interpretation]** status.
                     **Step 4:** Adjust the frames in the **random frames selector** if necessary, while maintaining a total of 10 selected frames.
-                    **Step 5:** Take note that selected frames will be marked in the **random frames selector** with a :star: prefix for the frame number and a :white_check_mark: suffix for the extracted second of the video, indicating their selection.
+                    **Step 5:** Take note that selected frames will be marked in the **random frames selector** with a :white_check_mark: suffix for the extracted second of the video, indicating their selection.
                 """
                 st.info(instructions)
             with st.expander('**Random frames available**', expanded=True):
@@ -891,7 +900,7 @@ def show_random_frames(
                 with fco1:
                     RANDOM_FRAMES_IDS = st.multiselect(
                     label='**random frames:**',
-                        options=FRAMES.keys(),
+                        options=AVAILABLE_FRAMES.keys(),
                         default=sorted(st.session_state.get('RANDOM_FRAMES_IDS', None)), 
                         max_selections=10,
                         help='Select 10 random frames for interpretation.',                        
@@ -901,35 +910,23 @@ def show_random_frames(
                         st.warning(f'Less than 10 frames selected. Requirement is 10 frames. Select {10-len(RANDOM_FRAMES_IDS)} more frame(s).')
                         show_station_is_ready = False
                         # -----
-                        if 'CURRENT' in st.session_state:
-                            st.session_state.pop('CURRENT')
-                        # -----
                     elif len(RANDOM_FRAMES_IDS) > 10:
                         st.warning('More than 10 frames selected. Requirement is 10 frames')
                         show_station_is_ready = False
 
-                        if 'CURRENT' in st.session_state:
-                            st.session_state.pop('CURRENT')
-
                     else:
                         show_station_is_ready = True
                         RANDOM_FRAMES = {k: {
-                            'FILEPATH': FRAMES[k],
+                            'FILEPATH': AVAILABLE_FRAMES[k],
                             'INTERPRETATION': {
                                 'DOTPOINTS': {}, 
                                 'STATUS': "NOT_STARTED"
                             }, 
                             } for k in RANDOM_FRAMES_IDS}
                         
-                        SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'] = RANDOM_FRAMES
-                        
-                        st.session_state.update({
-                                'CURRENT': {
-                                    'SURVEY_NAME': SURVEY_NAME, 
-                                    'STATION_NAME': STATION_NAME,
-                                    'VIDEO_NAME': _VIDEO_NAME,
-                                    'SURVEY_FILEPATH': SURVEY_FILEPATH,                                    
-                                    }})
+                        STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
+
+
                 # --------------------        
                 with fcol4:
                     if show_station_is_ready:
@@ -939,8 +936,13 @@ def show_random_frames(
                             help=f'Selected **{STATION_NAME}** is **:green[ready for interpretation]**. Click to save data, then Go to **MENU > Benthos interpretation** to start the interpretation workflow.')
                         if is_ready:
                             is_ready_for_interpretation = True
-                            SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['IS_READY'] = is_ready_for_interpretation
-                            SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
+                            STATION_DATA['BENTHOS_INTERPRETATION']['IS_READY'] = is_ready_for_interpretation
+                            
+                            update_station_data(
+                                STATION_DATA=STATION_DATA,
+                                STATION_FILEPATH=STATION_FILEPATH,
+                            )
+                            
                             st.toast('go to **MENU > Benthos interpretation**')
                                                  
                     else:
@@ -950,17 +952,17 @@ def show_random_frames(
                         show_station_is_ready = False
                 
                 # --------------------
-                display_image_carousel(FRAMES, list(RANDOM_FRAMES.keys()))
+                display_image_carousel(AVAILABLE_FRAMES, list(RANDOM_FRAMES.keys()))
         else:
             if  codec is not None and codec == 'h264':
                 # FUTURE DEVS: Separate the logic for the random frames from the video codec.
                 st.warning(f'**No random frames available** for selected video or random frames available with in video with sufix: :blue[{suffix}]. Attempting automatic generation of random frames.  Refresh the app and try again.')
-                RANDOM_FRAMES = select_random_frames(frames=FRAMES, num_frames=10)
+                RANDOM_FRAMES = select_random_frames(frames=AVAILABLE_FRAMES, num_frames=10)
                 
                 if RANDOM_FRAMES is not None and len(RANDOM_FRAMES)==10:
-                    SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'] = RANDOM_FRAMES                    
-                    #SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
-                    display_image_carousel(FRAMES, list(RANDOM_FRAMES.keys()))
+                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES                    
+                    
+                    display_image_carousel(AVAILABLE_FRAMES, list(RANDOM_FRAMES.keys()))
             else:
                 st.warning(f'**Random frames available** for other video in the station. Select video with sufix: :blue[{suffix}]. Refresh the app and try again.') 
 
@@ -1052,7 +1054,7 @@ def save_stations(STATIONS:dict, VIDEOS:dict, SURVEY_DIRPATH:str, fileExtension:
             
 
             if os.path.exists(STATION_FILEPATH):
-                STATIONS_FILEPATHS[siteName] = STATION_FILEPATH
+                STATIONS_FILEPATHS[siteName] =  STATION_FILEPATH
 
                 # Save the station data to a file.
                 saved_station = load_yaml(STATION_FILEPATH)
@@ -1264,16 +1266,12 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
 def show_video_processing(
         SURVEY_NAME:str,
         STATION_NAME:str,
+        STATION_DATA:dict,
+        STATION_FILEPATH:str,
         VIDEO_NAME:str,
         LOCAL_VIDEOS:dict,
         SURVEY_DATA:dict,
-        SURVEY_DIRPATH:dict,    
-        SURVEY_FILEPATH:str, 
-        SURVEY_DATASTORE:DataStore,
-        STATION_DIRPATH:str,
-        VIDEOS_DIRPATH:str, 
-        
-        videos_file_extension:str = '.mp4'):
+        SURVEY_DATASTORE:DataStore):
     
     """
     Displays video processing operations in a Streamlit app.
@@ -1298,9 +1296,6 @@ def show_video_processing(
     SURVEY_DATASTORE : DataStore
         An instance of a DataStore class for storing and retrieving survey data.
     
-    videos_file_extension : str, optional
-        The file extension for videos. Defaults to '.mp4'.
-
     Returns:
     -------
     None. This function uses Streamlit functions to display interactive components and messages directly on the app.
