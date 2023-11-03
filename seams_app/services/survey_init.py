@@ -1622,95 +1622,10 @@ def get_available_videos(SURVEY_DATA:dict, STATION_NAME:str, VIDEOS_DIRPATH:str,
 
 
 
-def station_selector(SURVEY_DATA:dict, SURVEY_DIRPATH:str, AVAILABLE_STATIONS_WITH_VIDEOS:dict, suffix:str = '***'):
-    """
-    Provides a UI element to select available stations and prepares the necessary directory path for 
-    the chosen station, creating the directory if it doesn't exist.
-
-    Parameters:
-    ----------
-    SURVEY_DIRPATH : str
-        The directory path where survey data (including station directories) are located.
-    
-    AVAILABLE_STATIONS_WITH_VIDEOS : dict
-        A dictionary where keys are station names and values are boolean (True) 
-        indicating that at least one video for the station is present in the 
-        given directory. Stations without available videos should not be included.
-
-    suffix : str, optional
-        A suffix to be appended to the station names in the UI selector if 
-        'FRAMES' are present in the 'BENTHOS_INTERPRETATION' of SURVEY_DATA for 
-        that station. Defaults to '***'.
-
-    Returns:
-    -------
-    Tuple[Optional[str], Optional[str]]:
-        A tuple containing the selected station name and its corresponding directory path. 
-        If no station is available or other conditions are not met, both values in the 
-        tuple will be None.
-
-    Overview:
-    --------
-    This function performs the following operations:
-    1. Retrieves the list of stations from the SURVEY_DATA.
-    2. Provides a UI selectbox (using Streamlit) populated with stations from the 
-       AVAILABLE_STATIONS_WITH_VIDEOS dictionary, allowing users to choose a station.
-    3. Based on the selected station, constructs the directory path for the station.
-    4. If the station directory does not exist, it creates the directory.
-    5. Returns the selected station name and its directory path.
-
-    Notes:
-    -----
-    The function uses the Streamlit library to create a selectbox UI element. The presence 
-    of 'FRAMES' in the 'BENTHOS_INTERPRETATION' for a station determines whether the suffix 
-    is appended to the station name in the UI.
-
-    If either the SURVEY_DATA's 'STATIONS' or the AVAILABLE_STATIONS_WITH_VIDEOS dictionary 
-    is empty, the function returns (None, None).
-    """
-    STATIONS = SURVEY_DATA.get('STATIONS', {})
-    if STATIONS is not None and len(STATIONS)>0 and AVAILABLE_STATIONS_WITH_VIDEOS is not None and len(AVAILABLE_STATIONS_WITH_VIDEOS)>0:
-        STATION_NAME = st.selectbox(
-            label='**Available station(s):**', 
-            options=sorted(AVAILABLE_STATIONS_WITH_VIDEOS), 
-            #index=0,
-            key='station_selector',
-            help='Select a station for benthic interpretation.',
-            format_func=lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(x, {}) else x,
-            )
-        # --------------------
-        #st.session_state['STATIONS'] = STATIONS
-        # --------------------
-        STATION_DIRPATH = os.path.join(SURVEY_DIRPATH, STATION_NAME)
-        if STATION_DIRPATH is not None and not os.path.exists(STATION_DIRPATH):
-            create_new_directory(dirpath=STATION_DIRPATH)
-        return STATION_NAME, STATION_DIRPATH
-        
-    else:
-        STATION_NAME = None
-        STATION_DIRPATH = None
-
-        return STATION_NAME, STATION_DIRPATH
-
-
 def get_available_surveys():
     SURVEYS_DIRPATH = get_nested_dict_value(st.session_state, ['APP', 'CONFIG', 'SURVEYS_DIRPATH'])    
     SURVEYS_AVAILABLE = get_SURVEYS_AVAILABLE(SURVEYS_DIRPATH)
     return SURVEYS_AVAILABLE
-
-def selection_boxes(surveys_selector: object, stations_selector:object, videos_selector:object):
-
-    col1, col2, col3, col4 = st.columns([2,1,2,1])
-
-    with col1:
-        SURVEY_NAME, SURVEY_FILEPATH = surveys_selector()
-        st.write(SURVEY_NAME, SURVEY_FILEPATH)
-    
-    with col2:
-        stations_selector()
-
-    with col3:
-        videos_selector()
 
 
 
