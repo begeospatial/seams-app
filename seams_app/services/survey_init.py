@@ -1,16 +1,27 @@
 import os
+import re
 import streamlit as st
 import pandas as pd
+from PIL import Image
 from bgstools.io import get_files_dictionary, is_directory_empty, delete_directory_contents, extract_frames, select_random_frames
 from bgstools.utils import colnames_dtype_mapping, get_nested_dict_value
 from bgstools.datastorage import DataStore, YamlStorage
 from bgstools.io.media import get_video_info, convert_codec
 from bgsio import search_yaml_files_by_subdir_filtered, create_subdirectory, load_yaml, create_new_directory, check_directory_exist_and_writable
-from bgstools.stt import display_image_carousel
 import traceback
 import yaml
 from h3 import h3
 
+
+def extract_sequence(filename: str) -> str:
+    """Extracts the sequence number from the filename and returns in the format SEC_xxxxxx."""
+    # Use regex to find a sequence of exactly 6 digits preceded by 'frame__'
+    match = re.search(r'frame__([\d]{6})_sec\.png$', filename)
+    if match:
+        return f"SEC_{match.group(1)}"
+    else:
+        raise ValueError(f"Invalid filename format: {filename}")
+    
 
 def lat_lng_to_h3(lat:float, lng:float, resolution=10):
     """
@@ -33,7 +44,10 @@ def lat_lng_to_h3(lat:float, lng:float, resolution=10):
         return None
 
 
-
+def update_station_data(STATION_DATA:dict, STATION_FILEPATH:str):
+    # Save the station data to a file.
+     with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
+        yaml.safe_dump(STATION_DATA, f, allow_unicode=True)
 
 def show_survey_summary(STATIONS:dict):
     """
@@ -556,7 +570,7 @@ def find_first_level_yaml_files(directory):
     return yaml_files
 
 
-def process_yaml_files(yaml_files):
+def DEPRECIATED_process_yaml_files(yaml_files):
     """
     Process each YAML file in the provided dictionary to extract specific benthos interpretation information.
 
@@ -712,6 +726,8 @@ def load_datastore(survey_filepath:str):
     return datastore
 
 
+
+
 def survey_selector_box(SURVEYS_AVAILABLE:dict)->tuple:
     """
     Presents a Streamlit selectbox widget for users to choose a survey from a list of available ones.
@@ -758,6 +774,61 @@ def survey_selector_box(SURVEYS_AVAILABLE:dict)->tuple:
         return SURVEY_NAME, SURVEY_FILEPATH
     else:
         return None
+
+def display_image_carousel(image_paths_dict: dict, RANDOM_FRAMES:dict = {}):
+    """
+    Display an image carousel with navigation slider.
+
+    Args:
+        image_paths_dict (dict): Dictionary mapping image titles to their file paths.
+
+    Returns:
+        None
+
+    """
+    if image_paths_dict is not None:
+            
+        num_images = len(image_paths_dict)
+        image_titles = list(image_paths_dict.keys())
+
+        col1, _, col3, _ = st.columns([1,1,2,1])
+        with col1:            
+            # Create a number input for navigation
+            frame_number = st.number_input(label= "**Preview frame:**",  
+                                    min_value=1,  
+                                    max_value=num_images,
+                                    step=1,
+                                    help="Use to navigate through the available frames.",                                
+                                    value=1)
+        with col3:
+            # Get the selected image title and path
+            selected_image_title = image_titles[frame_number - 1]
+            selected_image_path = image_paths_dict[selected_image_title]
+            #
+            FRAME_NUMBER = str(frame_number).zfill(2)
+
+            # Display the corresponding title next to the number input
+            if selected_image_title in RANDOM_FRAMES:
+                st.subheader(f":star: Frame **:blue[{FRAME_NUMBER}]** | KEY: **:green[{selected_image_title}]**")
+            else:
+                st.subheader(f"Frame **{FRAME_NUMBER}** | KEY: **`{selected_image_title}`**")
+            
+            
+        # Load and display the selected image
+        if os.path.exists(selected_image_path):
+                
+            image = Image.open(selected_image_path)
+            # Open the selected image file
+
+            st.image(image, caption=f'Frame {FRAME_NUMBER} | KEY: {selected_image_title}', use_column_width=True)
+            # Display the image with its caption
+
+        else:
+            st.error(f"Frame image not found: {selected_image_path}")
+            # Display an error message if the image file is not found
+    else:
+        st.error("Frame images dictionary is None.")
+
 
 
 def show_random_frames(
