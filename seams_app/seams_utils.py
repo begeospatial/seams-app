@@ -1,4 +1,6 @@
 import os
+from bgsio import create_new_directory
+
 
 
 def find_first_level_yaml_files(directory):
@@ -81,3 +83,23 @@ def get_surveys_available(surveys_dirpath:str):
     
     if len(SURVEYS_AVAILABLE)>0:
         return SURVEYS_AVAILABLE
+    
+
+def get_stations_available(SURVEY_FILEPATH:str)->dict:
+    """
+    """
+    STATIONS_AVAILABLE = {}
+    if os.path.isfile(SURVEY_FILEPATH):
+        SURVEY_DIRPATH = os.path.dirname(SURVEY_FILEPATH)
+        STATIONS_DIRPATH = os.path.join(SURVEY_DIRPATH, 'STATIONS')
+        if os.path.isdir(STATIONS_DIRPATH):
+            stations = find_first_level_yaml_files(STATIONS_DIRPATH)
+            # using only name of file without extension as key
+            STATIONS_AVAILABLE = {os.path.splitext(filename)[0]: stations[filename] for filename in stations}
+        else:
+            create_new_directory(STATIONS_DIRPATH)
+        
+    return STATIONS_AVAILABLE
+            
+            
+        
