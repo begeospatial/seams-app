@@ -395,7 +395,11 @@ def delete_survey():
         if SURVEYS_DIRPATH is not None:
             available_surveys_dirpath = create_directory_list(SURVEYS_DIRPATH)
             options = {os.path.basename(os.path.normpath(survey_dirpath)): survey_dirpath for survey_dirpath in available_surveys_dirpath}
-            selected_survey_dirname = st.selectbox('**DELETE survey :**', options=options, key='delete_survey_selectbox')
+            selected_survey_dirname = st.selectbox(
+                label='**DELETE survey :**',
+                placeholder='select survey',
+                options=options, 
+                key='delete_survey_selectbox')
             if selected_survey_dirname:
                 delete_subdirectory_with_confirmation(options[selected_survey_dirname], btn_label=f'Delete survey: **{selected_survey_dirname}**')
             
