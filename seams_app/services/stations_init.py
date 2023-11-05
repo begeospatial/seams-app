@@ -50,7 +50,7 @@ def update_station_data(STATION_DATA:dict, STATION_FILEPATH:str):
      with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
         yaml.safe_dump(STATION_DATA, f, allow_unicode=True)
 
-def show_survey_summary(STATIONS:dict):
+def show_survey_summary(STATIONS:dict, SURVEY_NAME):
     """
     Displays a summary of the survey in the sidebar.
 
@@ -69,7 +69,7 @@ def show_survey_summary(STATIONS:dict):
     - The survey summary provides a quick glance for users about the status of the current survey, 
       particularly the number of stations.
     """
-    SURVEY_NAME = get_nested_dict_value(st.session_state, ['APP', 'SURVEY', 'SURVEY_NAME'])
+    
     
     if STATIONS is not None and SURVEY_NAME is not None:        
         with st.sidebar.expander(label='**Survey summary**', expanded=True):
@@ -628,7 +628,7 @@ def load_datastore(survey_filepath:str):
     - This function uses Streamlit's caching mechanism (`@st.cache_data()`) to prevent unnecessary reloading of the same data, which can improve app performance, especially when dealing with large YAML files.
     """    
     if not os.path.isfile(survey_filepath):
-        st.warning('**No survey data available**. GO to **MENU>Survey initialization** create a new survey using the **Survey data management** menu. Refresh the app and try again.')
+        st.warning('**No survey data available**. GO to **MENU>Survey initialization** create a new survey using the **Survey data management** menu.Refresh the browser window and try again.')
         raise FileNotFoundError(f"The file `{survey_filepath}` does not exist.")
   
     try:
@@ -869,7 +869,7 @@ def show_random_frames(
         else:
             if  codec is not None and codec == 'h264':
                 # FUTURE DEVS: Separate the logic for the random frames from the video codec.
-                st.warning(f'**No random frames available** for selected video or random frames available with in video with sufix: :blue[{suffix}]. Attempting automatic generation of random frames.  Refresh the app and try again.')
+                st.warning(f'**No random frames available** for selected video or random frames available with in video with sufix: :blue[{suffix}]. Attempting automatic generation of random frames. Refresh the browser window and try again.')
                 RANDOM_FRAMES = select_random_frames(frames=AVAILABLE_FRAMES, num_frames=10)
                 
                 if RANDOM_FRAMES is not None and len(RANDOM_FRAMES)==10:
@@ -877,7 +877,7 @@ def show_random_frames(
                     
                     display_image_carousel(AVAILABLE_FRAMES, list(RANDOM_FRAMES.keys()))
             else:
-                st.warning(f'**Random frames available** for other video in the station. Select video with sufix: :blue[{suffix}]. Refresh the app and try again.') 
+                st.warning(f'**Random frames available** for other video in the station. Select video with sufix: :blue[{suffix}].Refresh the browser window and try again.') 
 
 st.cache_data()
 def show_video_player(video_player: st.empty, LOCAL_VIDEO_FILEPATH:str, START_TIME_IN_SECONDS:int = 0):
@@ -1258,7 +1258,7 @@ def show_video_processing(
 
                     if codec == None:
                         REQUIRES_VIDEO_CONVERSION = None
-                        st.warning('**Video codec is unknown**. Ensure video is available in the VIDEOS folder. Refresh the app and try again.')
+                        st.warning('**Video codec is unknown**. Ensure video is available in the VIDEOS folder.Refresh the browser window and try again.')
                         
                     elif codec == "hevc":
                         REQUIRES_VIDEO_CONVERSION = True
@@ -1471,7 +1471,7 @@ def show_video_processing(
         else:
             st.info(f'**Videos not available**. Copy the survey videos in the VIDEOS folder: **`/data/SURVEYS/{VIDEOS_DIRPATH.split("/data/SURVEYS/")[1]}`**. Ensure the video names match the videos in the VIDEOS folder. **Refresh the app and try again.**')
     else:
-        st.write('**No survey data available**. Ensure survey data is available in the SURVEY folder or within the **<survey_file.yaml>**  Refresh the app and try again.')
+        st.write('**No survey data available**. Ensure survey data is available in the SURVEY folder or within the **<survey_file.yaml>** Refresh the browser window and try again.')
 
 
 def get_available_videos(SURVEY_DATA:dict, STATION_NAME:str, VIDEOS_DIRPATH:str, videos_file_extension:str = '.mp4')->dict:
@@ -1645,7 +1645,7 @@ def run():
             
             
             # ---------
-            show_survey_summary(STATIONS=STATIONS_AVAILABLE)
+            # show_survey_summary(STATIONS=STATIONS_AVAILABLE)
             # ------ 
             if len(STATIONS_AVAILABLE)==0:
                 st.warning('**:red[Survey with no stations]**. Use the **Stations data editor** to add stations data and station video names to the survey. **Refresh the app and try again.**')
@@ -1686,7 +1686,7 @@ def run():
                     VIDEO_NAME = st.selectbox(
                         '**Available video(s):**',
                         options=sorted(AVAILABLE_VIDEOS),
-                        help='Select a video to extract frames from. **:red[If not videos are available]**, **:green[please add videos to the VIDEOS folder]**. Refresh the app and try again.',
+                        help='Select a video to extract frames from. **:red[If not videos are available]**, **:green[please add videos to the VIDEOS folder]**.Refresh the browser window and try again.',
                         key='video_selectbox',
                         format_func= lambda x: f'{x} {suffix}' if has_random_frames and x==_VIDEO_NAME else x)
 
@@ -1694,9 +1694,9 @@ def run():
                     AVAILABLE_VIDEOS = None
                     VIDEO_NAME = None
                     has_local_videos = False
-                    st.warning('**:red[No videos available]**. Add the relevant videos in the survey **VIDEOS** folder. Refresh the app and try again.')
+                    st.warning('**:red[No videos available]**. Add the relevant videos in the survey **VIDEOS** folder.Refresh the browser window and try again.')
             else:
-                st.error('**VIDEOS DIRPATH does not exist!**. Ensure the VIDEOS_DIRPATH exist and have writing access to the directory. Refresh the app and try again.')
+                st.error('**VIDEOS DIRPATH does not exist!**. Ensure the VIDEOS_DIRPATH exist and have writing access to the directory.Refresh the browser window and try again.')
                 LOCAL_VIDEOS = None
                 AVAILABLE_VIDEOS = None
                 has_local_videos = False
@@ -1737,7 +1737,7 @@ def run():
             # --------------------
         
     else:
-        st.warning('**No previous surveys available**. Create a new survey using the **Survey data management** sidebar menu. Refresh the app and try again.')
+        st.warning('**No previous surveys available**. Create a new survey using the **Survey data management** sidebar menu.Refresh the browser window and try again.')
         has_local_videos = False       
         has_random_frames = False
 
@@ -1752,6 +1752,8 @@ try:
     VIDEOS_AVAILABLE = None
     STATION_NAME = None
     STATION_FILEPATH = None
+    STATION_DATA = {}
+    VIDEOS_FILE_EXTENSION = '.mp4'
     show_stations_data_editor = False
 
 
@@ -1778,30 +1780,47 @@ try:
     
     with col2:            
         if SURVEY_FILEPATH is not None:
-            STATIONS_AVAILABLE = get_stations_available(SURVEY_FILEPATH=SURVEY_FILEPATH)
-            
+            STATIONS_AVAILABLE = get_stations_available(SURVEY_FILEPATH=SURVEY_FILEPATH)           
             if len(STATIONS_AVAILABLE)>0:
-                show_survey_summary(STATIONS=STATIONS_AVAILABLE)
+                show_survey_summary(STATIONS=STATIONS_AVAILABLE, SURVEY_NAME=SURVEY_NAME)                
 
                 STATION_NAME, STATION_FILEPATH = stations_selector_box(
                     STATIONS_AVAILABLE, 
                     index=0,
                     format_func=lambda x:f'{x}')
+                
+                STATION_DATA = load_yaml(STATIONS_AVAILABLE[STATION_NAME])
             else:
-                st.warning('**:red[Survey with no stations]**. Use the **Stations data editor** to add stations data and station video names to the survey. **Refresh the app and try again.**')
+                st.warning('**:red[Survey with no stations]**. Use the **Stations data editor** to add stations data and station video names to the survey. **Refresh the window and try again.**')
                 show_stations_data_editor = True
     
     with col3:
-        st.write(STATION_NAME, STATION_FILEPATH)
-    
+        VIDEOS_DIRPATH = SURVEY_DATA.get('SURVEY', {}).get('VIDEOS_DIRPATH', None)
+        if VIDEOS_DIRPATH is not None and os.path.exists(VIDEOS_DIRPATH):                
+            LOCAL_VIDEOS = get_files_dictionary(
+                VIDEOS_DIRPATH, 
+                file_extension=VIDEOS_FILE_EXTENSION,
+                keep_extension_in_key=True)
+            
+        # ---
+        EXPECTED_VIDEOS = STATION_DATA.get('VIDEOS', {})
+        RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {})
+        AVAILABLE_VIDEOS = {v: LOCAL_VIDEOS[v] for v in EXPECTED_VIDEOS if v in LOCAL_VIDEOS}
+        # ---
+        if len(AVAILABLE_VIDEOS)>0:
+                
+            VIDEO_NAME = st.selectbox(
+                        '**video(s):**',
+                        options=sorted(AVAILABLE_VIDEOS),
+                        help='Select a video to extract frames from. **:red[If not videos are available]**, **:green[please add videos to the VIDEOS folder]**. Refresh the browser window and try again.',
+                        key='video_selectbox',
+                        format_func= lambda x: f'{x}')    # {suffix}' if has_random_frames and x==_VIDEO_NAME else x
+        else:
+            st.warning('**:red[No videos available]**. Add the relevant videos in the survey **VIDEOS** folder. Refresh the browser window and try again.')
     # ----
-
-    if show_stations_data_editor:
-        if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
-            survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE)
-
-
-            st.write(SURVEY_DATA)
+    if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
+        survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE)
+        
 
     
     

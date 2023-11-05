@@ -212,11 +212,6 @@ def build_sidebar():
             st.markdown(""" <div style='text-align:center'> SEAMS-app mantained by:</div>""", unsafe_allow_html=True)
             st.image(LOGO_BEGEOSPATIAL)
     
-    refresh_button = st.sidebar.button("Refresh")
-    if refresh_button:
-        # Clear values from *all* all in-memory and on-disk data caches:
-        # st.cache_data.clear()
-        st.rerun()
         
     # Load the yaml with core services as activities    
     core_activities =  get_available_services(
@@ -349,7 +344,7 @@ def new_survey():
                         
                 else:
 
-                    st.error(f'Survey **{SURVEY_NAME}** already exists. Please, choose another name.')                   
+                    st.warning(f'Survey **{SURVEY_NAME}**')                   
 
 def remove_session_state(session_state_keys: list):
     """
