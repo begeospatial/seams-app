@@ -1494,6 +1494,9 @@ try:
     if 'STATION_INDEX' not in st.session_state:
         st.session_state['STATION_INDEX'] = 0
 
+    if 'CURRENT' not in st.session_state:
+        st.session_state['CURRENT'] = {}
+
 
     with st.expander('DEBUG'):
         st.write(st.session_state)
@@ -1513,6 +1516,10 @@ try:
                 SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
                 SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data.get('APP', {})
                 SURVEY_DATA['SURVEY_INDEX'] = st.session_state['SURVEY_INDEX']
+
+                st.session_state['CURRENT']['SURVEY_NAME'] = SURVEY_NAME
+                st.session_state['CURRENT']['SURVEY_FILEPATH'] = SURVEY_FILEPATH
+                
 
             except Exception as e:
                 #st.error(f'An error ocurred loading the survey data. Check the **<survey_file.yaml>** is not empty. If empty, please delete the file and its subdirectory and start a new survey. **{e}**')
@@ -1536,6 +1543,10 @@ try:
                 
                 STATION_DATA = load_yaml(STATIONS_AVAILABLE[STATION_NAME])
                 SURVEY_DATA['STATION_INDEX'] = st.session_state['STATION_INDEX']
+
+                st.session_state['CURRENT']['STATION_NAME'] = STATION_NAME
+                st.session_state['CURRENT']['STATION_FILEPATH'] = STATION_FILEPATH
+
             else:
                 st.warning('**:red[Survey with no stations]**. Use the **Stations data editor** to add stations data and station video names to the survey. **Refresh the window and try again.**')
                 show_stations_data_editor = True
@@ -1563,6 +1574,9 @@ try:
                             help='Select a video to extract frames from. **:red[If not videos are available]**, **:green[please add videos to the VIDEOS folder]**. Refresh the browser window and try again.',
                             key='video_selectbox',
                             format_func= lambda x: f'{x}')    # {suffix}' if has_random_frames and x==_VIDEO_NAME else x
+                
+                st.session_state['CURRENT']['VIDEO_NAME'] = VIDEO_NAME
+
             else:
                 st.warning('**:red[No videos available]**. Add the relevant videos in the survey **VIDEOS** folder. Refresh the browser window and try again.')
     # ----
@@ -1591,7 +1605,7 @@ try:
                 VIDEO_NAME = VIDEO_NAME,        
                 )
                 
-
+        st.session_state['CURRENT']['STATION_DATA'] = STATION_DATA
     
     
     

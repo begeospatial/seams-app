@@ -8,11 +8,11 @@ import traceback
 
 from bgstools.stt import toggle_button
 
-from seams_app.seafloor import substrates, phytobenthosCommonTaxa, \
+from seafloor import substrates, phytobenthosCommonTaxa, \
 STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAXONS
-from seams_app.services.survey_init import load_datastore
-from seams_app.markers import create_bounding_box, markers_grid, floating_marker 
-from seams_app.custom_options import SGU_custom_options
+from services.survey_init import load_datastore
+from markers import create_bounding_box, markers_grid, floating_marker 
+from custom_options import SGU_custom_options
 
 
 class Status(Enum):
@@ -769,6 +769,7 @@ try:
 
     build_header()
 
+    
     CURRENT = st.session_state.get('CURRENT', None)
 
     # --------------------
@@ -812,7 +813,7 @@ try:
             )
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
-            
+                
 
 except Exception as e:
     trace_error = traceback.print_exc()
