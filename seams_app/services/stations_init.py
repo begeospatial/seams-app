@@ -1177,8 +1177,7 @@ def show_video_processing(
         STATION_FILEPATH:str,
         VIDEO_NAME:str,
         LOCAL_VIDEOS:dict,
-        SURVEY_DATA:dict,
-        SURVEY_DATASTORE:DataStore):
+        SURVEY_DATA:dict):
     
     """
     Displays video processing operations in a Streamlit app.
@@ -1235,6 +1234,8 @@ def show_video_processing(
     This function is specifically designed for use within a Streamlit app and may require modifications 
     if used in a different context.
     """
+    STATION_DIRPATH = os.path.dirname(STATION_FILEPATH)
+
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
         VIDEOS_DIRPATH = SURVEY_DATA['SURVEY']['VIDEOS_DIRPATH']
         VIDEO_NAMES  = STATION_DATA.get('VIDEOS', {})
@@ -1258,7 +1259,7 @@ def show_video_processing(
 
                     if codec == None:
                         REQUIRES_VIDEO_CONVERSION = None
-                        st.warning('**Video codec is unknown**. Ensure video is available in the VIDEOS folder.Refresh the browser window and try again.')
+                        st.warning('**Video codec is unknown**. Ensure video is available in the VIDEOS folder. Refresh the app and try again.')
                         
                     elif codec == "hevc":
                         REQUIRES_VIDEO_CONVERSION = True
@@ -1277,8 +1278,7 @@ def show_video_processing(
                         st.markdown(f"### {STATION_NAME} | {VIDEO_NAME}")
                             
                     with vcol2:
-                        if LOCAL_VIDEO_FILEPATH is not None and os.path.exists(LOCAL_VIDEO_FILEPATH):
-                            missing_video = False
+                        if LOCAL_VIDEO_FILEPATH is not None and os.path.exists(LOCAL_VIDEO_FILEPATH):                           
 
                             if REQUIRES_VIDEO_CONVERSION is not None and REQUIRES_VIDEO_CONVERSION:
                                 convert_video_codec_btn = st.button(
@@ -1304,24 +1304,24 @@ def show_video_processing(
                                         VIDEO_INTERPRETATION = { 
                                                 'REQUIRES_VIDEO_CONVERSION': REQUIRES_VIDEO_CONVERSION,
                                                 'SURVEY_NAME': SURVEY_NAME,
-                                                'SURVEY_DIRPATH': SURVEY_DIRPATH,
-                                                'SURVEY_FILEPATH': SURVEY_FILEPATH,
                                                 'STATION_NAME': STATION_NAME,
-                                                'STATION_DIRPATH': STATION_DIRPATH,                                
+                                                'STATION_FILEPATH': STATION_FILEPATH,
                                                 'VIDEO_NAME': _VIDEO_NAME, 
                                                 'VIDEO_FILEPATH': _VIDEO_FILEPATH,
                                                 'VIDEO_DIRPATH': _VIDEO_DIRPATH,
                                                 'VIDEO_INFO': VIDEO_INFO,}
                                         
-                                        SURVEY_DATA['VIDEOS'][STATION_NAME].update({_VIDEO_NAME: True, 
-                                                                                    VIDEO_NAME: False})
+                                        STATION_DATA['VIDEOS'].update(
+                                            {_VIDEO_NAME: True, 
+                                            VIDEO_NAME: False})
                                         
-                                        if STATION_NAME not in SURVEY_DATA['BENTHOS_INTERPRETATION']:
-                                            SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME] = {}
-
-                                        SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].update(VIDEO_INTERPRETATION)
+                                        STATION_DATA['BENTHOS_INTERPRETATION'].update(VIDEO_INTERPRETATION)
+                                        with st.spinner('Saving station data...'):
+                                            update_station_data(
+                                                STATION_DATA=STATION_DATA,
+                                                STATION_FILEPATH=STATION_FILEPATH,)
                                         
-                                        SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
+                                        
                                         st.toast('Data saved. Ready for frames extraction.')
                                         st.rerun()
                             elif ~REQUIRES_VIDEO_CONVERSION:
@@ -1334,27 +1334,23 @@ def show_video_processing(
                                 VIDEO_INTERPRETATION = { 
                                     'REQUIRES_VIDEO_CONVERSION': REQUIRES_VIDEO_CONVERSION,
                                     'SURVEY_NAME': SURVEY_NAME,
-                                    'SURVEY_DIRPATH': SURVEY_DIRPATH,
-                                    'SURVEY_FILEPATH': SURVEY_FILEPATH,
                                     'STATION_NAME': STATION_NAME,
-                                    'STATION_DIRPATH': STATION_DIRPATH,                                
+                                    'STATION_FILEPATH': STATION_FILEPATH,                               
                                     'VIDEO_NAME': VIDEO_NAME, 
                                     'VIDEO_FILEPATH': VIDEO_FILEPATH,
                                     'VIDEO_DIRPATH': VIDEO_DIRPATH,
                                     'VIDEO_INFO': VIDEO_INFO,}
                             
-                                SURVEY_DATA['VIDEOS'][STATION_NAME].update({VIDEO_NAME: True})
+                                STATION_DATA['VIDEOS'].update({VIDEO_NAME: True})
 
-                                if STATION_NAME not in SURVEY_DATA['BENTHOS_INTERPRETATION']:
-                                    SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME] = {}
 
-                                SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].update(VIDEO_INTERPRETATION)
+                                STATION_DATA['BENTHOS_INTERPRETATION'].update(VIDEO_INTERPRETATION)
+                                with st.spinner('Saving station data...'):
+                                    update_station_data(
+                                        STATION_DATA=STATION_DATA,
+                                        STATION_FILEPATH=STATION_FILEPATH,)
                                 
-                                SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
                                 st.toast('Data saved. Ready for frames extraction.')
-                            
-
-                    
                     # ------------------------------
                     if codec is not None and codec=='h264':
                         st.session_state['codec'] = codec
@@ -1371,33 +1367,25 @@ def show_video_processing(
                             frames_message_01 = st.empty()
                             frames_message_02 = st.empty()
                         
-                        _FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].get('FRAMES', None)
-                        _RANDOM_FRAMES = SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME].get('RANDOM_FRAMES', None)
+                        
+                        #
+                        _RANDOM_FRAMES = STATION_DATA['BENTHOS_INTERPRETATION'].get('RANDOM_FRAMES', None)
 
-                        if _FRAMES is not None and len(_FRAMES)>0:
-                            _START_TIME_IN_SECONDS = _FRAMES.get('START_TIME_IN_SECONDS', 0)
-                            _EXTRACT_ONE_FRAME_X_SECONDS = _FRAMES.get('EXTRACT_ONE_FRAME_X_SECONDS', 2)
+                        if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)>0:
+                            _START_TIME_IN_SECONDS = STATION_DATA['BENTHOS_INTERPRETATION'].get('START_TIME_IN_SECONDS', 0)
+                            _EXTRACT_ONE_FRAME_X_SECONDS = STATION_DATA['BENTHOS_INTERPRETATION'].get('EXTRACT_ONE_FRAME_X_SECONDS', 2)
                         else:
                             _START_TIME_IN_SECONDS = 0
                             _EXTRACT_ONE_FRAME_X_SECONDS = 2
 
-                        if _FRAMES is not None and len(_FRAMES)>=10:
-                            frames_message_00.success(f'**Frames available**. Total frames: {len(_FRAMES)}')
-                            if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)==10:
-                                frames_message_01.success(f'**Random frames available**. Total frames: {len(_RANDOM_FRAMES)}')
-                            else:
-                                frames_message_01.warning(f'**No random frames available**. Attempting to generate random frames.')
-                                _RANDOM_FRAMES = select_random_frames(frames=_FRAMES, num_frames=10)
-                                
-                                if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)==10:
-                                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = _RANDOM_FRAMES
-                                    frames_message_02.success(f'Frames extracted successfully. Total frames: {len(_FRAMES)}. Refresh the app.')
-                                else:
-                                    _RANDOM_FRAMES = None
-
-                                    frames_message_02.warning('**No random frames available**. Extract frames from the video.')                            
+                        frames_message_00.success(f'**Frames available**.')
+                        if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)==10:
+                            frames_message_01.success(f'**Random frames available**. Total frames: {len(_RANDOM_FRAMES)}')
+                            STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = _RANDOM_FRAMES
                         else:
-                            frames_message_00.warning(f'**No frames available**. Extract frames from the video.')
+                            _RANDOM_FRAMES = None
+                            frames_message_02.warning('**No random frames available**. Extract frames from the video.')                            
+                    
 
 
                         max_value = int(video_info['duration'])                      
@@ -1414,7 +1402,7 @@ def show_video_processing(
                                 LOCAL_VIDEO_FILEPATH= LOCAL_VIDEO_FILEPATH, 
                                 START_TIME_IN_SECONDS= START_TIME_IN_SECONDS)
                             
-                            SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['START_TIME_IN_SECONDS'] = START_TIME_IN_SECONDS                            
+                            STATION_DATA['BENTHOS_INTERPRETATION']['START_TIME_IN_SECONDS'] = START_TIME_IN_SECONDS                            
 
                         max_value = int(video_info['duration'])
                         EXTRACT_ONE_FRAME_X_SECONDS =  extract_frames_num_input.number_input(
@@ -1430,9 +1418,10 @@ def show_video_processing(
                                     key='extract_frames_slider' 
                                     )
                         if EXTRACT_ONE_FRAME_X_SECONDS is not None:
-                            SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['EXTRACT_ONE_FRAME_X_SECONDS'] = int(EXTRACT_ONE_FRAME_X_SECONDS)  
+                            STATION_DATA['BENTHOS_INTERPRETATION']['EXTRACT_ONE_FRAME_X_SECONDS'] = int(EXTRACT_ONE_FRAME_X_SECONDS)  
                             
                         if confirm_btn.button(label='extract frames', help='Extract frames from the video.'):
+                            STATION_DIRPATH = os.path.dirname(STATION_FILEPATH)
                             FRAMES_DIRPATH = os.path.join(STATION_DIRPATH, 'FRAMES')
                             create_new_directory(FRAMES_DIRPATH)
                             
@@ -1459,19 +1448,21 @@ def show_video_processing(
                                 if FRAMES is not None and len(FRAMES)>10:
                                     RANDOM_FRAMES = select_random_frames(frames=FRAMES, num_frames=10)
                                     
-                                    SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['FRAMES'] = FRAMES
-                                    SURVEY_DATA['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'] = RANDOM_FRAMES
+                                    STATION_DATA['BENTHOS_INTERPRETATION']['FRAMES_DIRPATH'] = FRAMES_DIRPATH
+                                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
 
                                     frames_message_01.success(f'Frames extracted successfully. **Total frames extracted: {len(FRAMES)}**')
                                     frames_message_02.success(f'**Done!!! {len(RANDOM_FRAMES)} random frames** selected successfully. **Refresh the app to continue.**')
                                     st.toast('RANDOM FRAMES available')
-                                    #SURVEY_DATASTORE.storage_strategy.data['APP'] = SURVEY_DATA
-                                    SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
+                                    update_station_data(
+                                        STATION_DATA=STATION_DATA,
+                                        STATION_FILEPATH=STATION_FILEPATH,)
+                                    
 
         else:
             st.info(f'**Videos not available**. Copy the survey videos in the VIDEOS folder: **`/data/SURVEYS/{VIDEOS_DIRPATH.split("/data/SURVEYS/")[1]}`**. Ensure the video names match the videos in the VIDEOS folder. **Refresh the app and try again.**')
     else:
-        st.write('**No survey data available**. Ensure survey data is available in the SURVEY folder or within the **<survey_file.yaml>** Refresh the browser window and try again.')
+        st.write('**No survey data available**. Ensure survey data is available in the SURVEY folder or within the **<survey_file.yaml>**  Refresh the app and try again.')
 
 
 def get_available_videos(SURVEY_DATA:dict, STATION_NAME:str, VIDEOS_DIRPATH:str, videos_file_extension:str = '.mp4')->dict:
@@ -1820,6 +1811,15 @@ try:
     # ----
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
         survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE)
+
+    show_video_processing(
+        SURVEY_NAME = SURVEY_NAME,
+        STATION_NAME = STATION_NAME,
+        STATION_DATA = STATION_DATA,
+        STATION_FILEPATH = STATION_FILEPATH,        
+        VIDEO_NAME = VIDEO_NAME,
+        LOCAL_VIDEOS = LOCAL_VIDEOS,
+        SURVEY_DATA = SURVEY_DATA)
         
 
     
