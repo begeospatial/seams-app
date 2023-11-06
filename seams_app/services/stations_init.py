@@ -652,6 +652,8 @@ def survey_selector_box(SURVEYS_AVAILABLE:dict, index:int = 0, format_func: call
     """
     if SURVEYS_AVAILABLE is not None and len(SURVEYS_AVAILABLE)>0:
         SURVEYS_OPTIONS = sorted(list(SURVEYS_AVAILABLE.keys()))
+
+        
         SURVEY_NAME = st.selectbox(
             label='**Available survey(s):**', 
             options=SURVEYS_OPTIONS, 
@@ -1503,23 +1505,26 @@ try:
 
     col1, col2, col3 = st.columns([1,1,1])
 
+    
     with col1:
         SURVEYS_AVAILABLE = get_available_surveys()
         if SURVEYS_AVAILABLE is not None and len(SURVEYS_AVAILABLE)>0:
+            SURVEY_INDEX = st.session_state['SURVEY_INDEX']
+
             SURVEY_NAME, SURVEY_FILEPATH = survey_selector_box(
                 SURVEYS_AVAILABLE, 
-                index=st.session_state['SURVEY_INDEX'],
+                index=SURVEY_INDEX,
                 format_func=lambda x: f'{x}')
+            
+            st.session_state['CURRENT']['SURVEY_NAME'] = SURVEY_NAME
+            st.session_state['CURRENT']['SURVEY_FILEPATH'] = SURVEY_FILEPATH
+            
 
             try:
                 # DATASTORE is initialized here
                 SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
                 SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data.get('APP', {})
                 SURVEY_DATA['SURVEY_INDEX'] = st.session_state['SURVEY_INDEX']
-
-                st.session_state['CURRENT']['SURVEY_NAME'] = SURVEY_NAME
-                st.session_state['CURRENT']['SURVEY_FILEPATH'] = SURVEY_FILEPATH
-                
 
             except Exception as e:
                 #st.error(f'An error ocurred loading the survey data. Check the **<survey_file.yaml>** is not empty. If empty, please delete the file and its subdirectory and start a new survey. **{e}**')
