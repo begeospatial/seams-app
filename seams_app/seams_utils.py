@@ -103,3 +103,24 @@ def get_stations_available(SURVEY_FILEPATH:str)->dict:
             
             
         
+def get_subdir_name(file_path):
+    """
+    Extract the subdirectory name right below a file.
+
+    Parameters:
+        file_path (str): Full path of the file.
+
+    Returns:
+        str: Name of the subdirectory right below the file.
+    """
+    try:
+        # Get the directory name where the file is located
+        dir_path = os.path.dirname(file_path)
+        
+        # Get the last part of the directory name
+        subdir_name = os.path.basename(dir_path)
+        
+        return subdir_name
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
