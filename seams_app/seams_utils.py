@@ -1,6 +1,8 @@
 import os
 from bgsio import create_new_directory
-
+import yaml
+from bgstools.datastorage import DataStore, YamlStorage
+import streamlit as st
 
 
 def find_first_level_yaml_files(directory):
@@ -124,3 +126,53 @@ def get_subdir_name(file_path):
     except Exception as e:
         print(f"An error occurred: {e}")
         return None
+
+def update_station_data(STATION_DATA:dict, STATION_FILEPATH:str):
+    # Save the station data to a file.
+     with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
+        yaml.safe_dump(STATION_DATA, f, allow_unicode=True)
+
+
+st.cache_data()
+def load_datastore(survey_filepath:str):
+    """
+    Load data from a specified YAML file into a DataStore object.
+
+    Parameters:
+    - survey_filepath (str): Absolute path to the desired YAML file.
+
+    Returns:
+    - DataStore: An instance of the DataStore class containing the data loaded from the YAML file.
+
+    Raises:
+    - FileNotFoundError: If the provided file path does not point to an existing file.
+    - ValueError: If there's a failure in loading the file content into a DataStore object.
+
+    Workflow:
+    - Check if the provided file path is valid and points to an existing file.
+    - Attempt to instantiate a DataStore object with data from the specified YAML file.
+    - If there are any issues with these operations, relevant exceptions are raised.
+
+    Dependencies:
+    - This function assumes the existence of:
+        * DataStore class that can consume data from a storage mechanism.
+        * YamlStorage class that can read YAML files and serve as a storage mechanism for DataStore.
+
+    Example Usage:
+    >>> datastore = load_datastore('/path/to/survey.yaml')
+    >>> type(datastore)
+    <class 'DataStore'>
+
+    Notes:
+    - This function uses Streamlit's caching mechanism (`@st.cache_data()`) to prevent unnecessary reloading of the same data, which can improve app performance, especially when dealing with large YAML files.
+    """    
+    if not os.path.isfile(survey_filepath):
+        st.warning('**No survey data available**. GO to **MENU>Survey initialization** create a new survey using the **Survey data management** menu.Refresh the browser window and try again.')
+        raise FileNotFoundError(f"The file `{survey_filepath}` does not exist.")
+  
+    try:
+        datastore = DataStore(YamlStorage(file_path=survey_filepath))
+    except Exception as e:
+        raise ValueError(f"Failed to load data from {survey_filepath}: {str(e)}")
+        
+    return datastore

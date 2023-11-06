@@ -5,12 +5,12 @@ import pandas as pd
 from PIL import Image
 from bgstools.io import get_files_dictionary, is_directory_empty, delete_directory_contents, extract_frames, select_random_frames
 from bgstools.utils import colnames_dtype_mapping, get_nested_dict_value
-from bgstools.datastorage import DataStore, YamlStorage
+from bgstools.datastorage import DataStore
 from bgstools.io.media import get_video_info, convert_codec
-from bgsio import search_yaml_files_by_subdir_filtered, create_subdirectory, load_yaml, create_new_directory, check_directory_exist_and_writable
+from bgsio import load_yaml, create_new_directory
 import traceback
 import yaml
-from seams_utils import get_surveys_available, get_stations_available
+from seams_utils import get_surveys_available, get_stations_available, update_station_data, load_datastore
 
 
 def extract_sequence(filename: str) -> str:
@@ -23,10 +23,7 @@ def extract_sequence(filename: str) -> str:
         raise ValueError(f"Invalid filename format: {filename}")
     
 
-def update_station_data(STATION_DATA:dict, STATION_FILEPATH:str):
-    # Save the station data to a file.
-     with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
-        yaml.safe_dump(STATION_DATA, f, allow_unicode=True)
+
 
 def show_survey_summary(STATIONS:dict, SURVEY_NAME):
     """
@@ -572,49 +569,6 @@ def DEPRECIATED_process_yaml_files(yaml_files):
 
 
 
-st.cache_data()
-def load_datastore(survey_filepath:str):
-    """
-    Load data from a specified YAML file into a DataStore object.
-
-    Parameters:
-    - survey_filepath (str): Absolute path to the desired YAML file.
-
-    Returns:
-    - DataStore: An instance of the DataStore class containing the data loaded from the YAML file.
-
-    Raises:
-    - FileNotFoundError: If the provided file path does not point to an existing file.
-    - ValueError: If there's a failure in loading the file content into a DataStore object.
-
-    Workflow:
-    - Check if the provided file path is valid and points to an existing file.
-    - Attempt to instantiate a DataStore object with data from the specified YAML file.
-    - If there are any issues with these operations, relevant exceptions are raised.
-
-    Dependencies:
-    - This function assumes the existence of:
-        * DataStore class that can consume data from a storage mechanism.
-        * YamlStorage class that can read YAML files and serve as a storage mechanism for DataStore.
-
-    Example Usage:
-    >>> datastore = load_datastore('/path/to/survey.yaml')
-    >>> type(datastore)
-    <class 'DataStore'>
-
-    Notes:
-    - This function uses Streamlit's caching mechanism (`@st.cache_data()`) to prevent unnecessary reloading of the same data, which can improve app performance, especially when dealing with large YAML files.
-    """    
-    if not os.path.isfile(survey_filepath):
-        st.warning('**No survey data available**. GO to **MENU>Survey initialization** create a new survey using the **Survey data management** menu.Refresh the browser window and try again.')
-        raise FileNotFoundError(f"The file `{survey_filepath}` does not exist.")
-  
-    try:
-        datastore = DataStore(YamlStorage(file_path=survey_filepath))
-    except Exception as e:
-        raise ValueError(f"Failed to load data from {survey_filepath}: {str(e)}")
-        
-    return datastore
 
 
 
@@ -760,7 +714,7 @@ def show_random_frames(
     - Relies on external functions like display_image_carousel and select_random_frames.
     """    
 
-    
+    is_ready_for_interpretation = False
 
     FRAMES_DIRPATH = STATION_DATA['BENTHOS_INTERPRETATION'].get('FRAMES_DIRPATH', None)
         
@@ -830,13 +784,18 @@ def show_random_frames(
                         if is_ready:
                             is_ready_for_interpretation = True
                             STATION_DATA['BENTHOS_INTERPRETATION']['IS_READY'] = is_ready_for_interpretation
+                            with st.spinner():
+                                update_station_data(
+                                    STATION_DATA=STATION_DATA,
+                                    STATION_FILEPATH=STATION_FILEPATH,
+                                )
                             
-                            update_station_data(
-                                STATION_DATA=STATION_DATA,
-                                STATION_FILEPATH=STATION_FILEPATH,
-                            )
+                            CURRENT = st.session_state['CURRENT']
                             
-                            st.toast('go to **MENU > Benthos interpretation**')
+                            
+                            st.toast('go to **MENU > Benthos interpretation**')                            
+                            st.rerun()
+                            
                                                  
                     else:
                         st.subheader(f'**number of random frames:**')
@@ -858,6 +817,9 @@ def show_random_frames(
                     display_image_carousel(AVAILABLE_FRAMES, list(RANDOM_FRAMES.keys()))
             else:
                 st.warning(f'**Random frames available** for other video in the station. Select video with sufix: :blue[{suffix}].Refresh the browser window and try again.') 
+
+    return is_ready_for_interpretation, STATION_DATA
+
 
 st.cache_data()
 def show_video_player(video_player: st.empty, LOCAL_VIDEO_FILEPATH:str, START_TIME_IN_SECONDS:int = 0):
@@ -952,7 +914,7 @@ def save_stations(STATIONS:dict, VIDEOS:dict, SURVEY_DIRPATH:str, fileExtension:
 
     
 
-def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore)->bool:
+def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILEPATH:str)->bool:
     """
     Interactive data editor in Streamlit for editing and saving survey data.
 
@@ -1473,10 +1435,7 @@ def stations_selector_box(STATIONS_AVAILABLE:dict, index:int = 0, format_func:ca
 
 
 
-
-
-try:
-    build_header()
+def main_menu():
     SURVEY_NAME = None
     SURVEY_FILEPATH = None
     SURVEYS_AVAILABLE = None
@@ -1489,19 +1448,7 @@ try:
     STATION_DATA = {}
     VIDEOS_FILE_EXTENSION = '.mp4'
     VIDEO_NAME = None
-    show_stations_data_editor = False
-    if 'SURVEY_INDEX' not in st.session_state:
-        st.session_state['SURVEY_INDEX'] = 0               
-            
-    if 'STATION_INDEX' not in st.session_state:
-        st.session_state['STATION_INDEX'] = 0
 
-    if 'CURRENT' not in st.session_state:
-        st.session_state['CURRENT'] = {}
-
-
-    with st.expander('DEBUG'):
-        st.write(st.session_state)
 
     col1, col2, col3 = st.columns([1,1,1])
 
@@ -1581,15 +1528,37 @@ try:
                             format_func= lambda x: f'{x}')    # {suffix}' if has_random_frames and x==_VIDEO_NAME else x
                 
                 st.session_state['CURRENT']['VIDEO_NAME'] = VIDEO_NAME
+                st.session_state['CURRENT']['RANDOM_FRAMES'] = RANDOM_FRAMES
 
             else:
                 st.warning('**:red[No videos available]**. Add the relevant videos in the survey **VIDEOS** folder. Refresh the browser window and try again.')
     # ----
-   
-   
+    return SURVEY_NAME, SURVEY_DATA, SURVEY_FILEPATH,  SURVEY_DATASTORE, STATION_DATA, STATION_NAME, STATION_FILEPATH, VIDEO_NAME, LOCAL_VIDEOS
+
+try:
+    build_header()
+
+    show_stations_data_editor = False
+    if 'SURVEY_INDEX' not in st.session_state:
+        st.session_state['SURVEY_INDEX'] = 0               
+            
+    if 'STATION_INDEX' not in st.session_state:
+        st.session_state['STATION_INDEX'] = 0
+
+    if 'CURRENT' not in st.session_state:
+        st.session_state['CURRENT'] = {}
+
+
+    with st.expander('DEBUG'):
+        st.write(st.session_state)
+
+    # --------------------
+    SURVEY_NAME, SURVEY_DATA, SURVEY_FILEPATH, SURVEY_DATASTORE, STATION_DATA, STATION_NAME, STATION_FILEPATH, VIDEO_NAME, LOCAL_VIDEOS = main_menu()
+    # --------------------
+
     if SURVEY_DATA is not None and len(SURVEY_DATA)>0:
                             
-        survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE)
+        survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE, SURVEY_FILEPATH)
 
     if VIDEO_NAME is not None:   # STATION_DATA is not None and len(STATION_DATA)>0:
         if 'RANDOM_FRAMES' not in STATION_DATA['BENTHOS_INTERPRETATION']:
@@ -1603,7 +1572,7 @@ try:
                 SURVEY_DATA = SURVEY_DATA)
         else:
                     
-            show_random_frames(        
+            is_ready_for_interpretation, STATION_DATA = show_random_frames(        
                 STATION_NAME = STATION_NAME,
                 STATION_DATA = STATION_DATA,
                 STATION_FILEPATH = STATION_FILEPATH,        
