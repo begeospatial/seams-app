@@ -3,11 +3,6 @@
 # created_on: 2022-09-01
 # maintainer: José Beltrán - Be GeoSpatial
 
-#- 
-#  name: 'Surveys management'
-#  description: 'Surveys data management'
-#  url: "survey_management.py"
-
 - 
   name: '(1) Stations initialization'
   description: 'Stations'

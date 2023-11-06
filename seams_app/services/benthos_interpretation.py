@@ -5,14 +5,15 @@ from PIL import Image
 from typing import List
 from enum import Enum
 import traceback
-
+from bgstools.datastorage import DataStore
 from bgstools.stt import toggle_button
 
 from seafloor import substrates, phytobenthosCommonTaxa, \
 STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAXONS
-from services.survey_init import load_datastore
+
 from markers import create_bounding_box, markers_grid, floating_marker 
 from custom_options import SGU_custom_options
+from seams_utils import update_station_data, load_datastore
 
 
 class Status(Enum):
@@ -203,12 +204,11 @@ def survey_results(SURVEY_DATA):
 
 
 def frame_results(
-        SURVEY_DATA:dict,
-        STATION_NAME:str,
+        STATION_DATA:dict,        
         FRAME_NAME:str,        
         key:str= None):
     
-    FRAME_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+    FRAME_INTERPRETATION = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {}).get(FRAME_NAME, {}).get('INTERPRETATION', {})
     METADATA = FRAME_INTERPRETATION.get('METADATA', {})
     if len(METADATA) > 0:            
         if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
@@ -232,7 +232,7 @@ def frame_results(
                 'DOTPOINT_ID': {'editable': False, 'rename': False},                            
                 } 
             
-            data_editor = st.data_editor(
+            st.data_editor(
                 data=df,
                 num_rows=10,
                 column_config= column_config,
@@ -243,44 +243,6 @@ def frame_results(
                 disabled=True,
                 )
             
-            #FRAME_TAXONS = set()
-            
-            #frame_summary_dict = data_editor.set_index('DOTPOINT_ID', drop=False).to_dict(orient='index')
-            #for id in frame_summary_dict:
-            #    FRAME_TAXONS.update([t for t in frame_summary_dict[id]['TAXONS']])
-            #    substrate = frame_summary_dict[id]['SUBSTRATE']
-            #    frame_summary_dict[id][substrate] = 1
-            #    for taxon in FRAME_TAXONS:                    
-            #        frame_summary_dict[id][taxon] = 1
-            
-            # ------------------
-            #st.write('## Frame summary')
-            #df = pd.DataFrame.from_dict(frame_summary_dict, orient='index')
-            #df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
-            #df['SURVEY_NAME'] = SURVEY_NAME
-            #df['STATION_NAME'] = STATION_NAME
-            #df['FRAME_NAME'] = FRAME_NAME
-            #df['VIDEO_NAME'] = VIDEO_NAME
-            
-            #st.divider()
-            #st.dataframe(df)
-
-            #save_to_file = st.button(label='Save file `csv`', key=f'button_{key}')
-            #if save_to_file:
-            #    filename = os.path.join(SURVEY_DIRPATH, f'{SURVEY_NAME}_STATION_{STATION_NAME}_FRAME_{FRAME_NAME}_frame_summary.csv')
-            #    with st.spinner('Saving file...'):
-                    
-            #        df.to_csv(
-            #            os.path.join(filename),
-            #            encoding='utf-8',
-            #            index=False,
-            #            )
-                
-            #    if os.path.exists(filename):
-            #        st.info(f'File saved: {filename}')
-            #        st.balloons()
-
-            #return frame_summary_dict
         
         else:
             st.warning('No dotpoints selected or saved')
@@ -292,10 +254,8 @@ def benthos_main_menu(
         SURVEY_NAME:str, 
         STATION_NAME:str, 
         VIDEO_NAME:str, 
-        STATION_BENTHOS_INTERPRETATION:dict):
+        RANDOM_FRAMES:dict):
     
-
-    RANDOM_FRAMES = STATION_BENTHOS_INTERPRETATION['RANDOM_FRAMES']
     RANDOM_FRAMES_INDEX_DICT = {i+1:k for i, k in enumerate(RANDOM_FRAMES.keys())}
 
     with st.expander(label='**Benthos interpretation**', expanded=True):
@@ -317,8 +277,9 @@ def benthos_main_menu(
                 help='Select the frame to interpret', 
                 label_visibility='hidden')
             
-        FRAME_NAME = RANDOM_FRAMES_INDEX_DICT[FRAME_INDEX]
-        FRAME_FILEPATH = STATION_BENTHOS_INTERPRETATION['FRAMES'][FRAME_NAME]
+        FRAME_NAME = RANDOM_FRAMES_INDEX_DICT[FRAME_INDEX]        
+        FRAME_FILEPATH = RANDOM_FRAMES[FRAME_NAME]['FILEPATH']
+        
         result = {
             'FRAME_INDEX': FRAME_INDEX, 
             'FRAME_NAME': FRAME_NAME, 
@@ -358,6 +319,8 @@ def generate_toggle_buttons_grid(n_rows=3):
 
     return grid
 
+
+
 def display_grid(grid, disable_dotpoints:list = [])->dict:
     """Displays the generated grid on Streamlit."""
     dotpoints_selected_dict = {}
@@ -384,11 +347,11 @@ def display_grid(grid, disable_dotpoints:list = [])->dict:
 
 def reset_dotpoints(
         dotpoint_grid_ids:dict, 
-        dotpoints_done:dict, 
-        SURVEY_DATA:dict, 
-        FRAME_INTERPRETATION:dict, 
-        SURVEY_DATASTORE:dict, 
+        dotpoints_done:dict,
+        
+        FRAME_INTERPRETATION:dict,         
         key:str):
+    
     dotpoints = FRAME_INTERPRETATION['DOTPOINTS']
 
     with st.form(key=f'{key}', clear_on_submit=True):
@@ -405,9 +368,8 @@ def reset_dotpoints(
                     if int(dotpoint) in dotpoints_done:
                         del dotpoints_done[int(dotpoint)]
                     del dotpoints[int(dotpoint)]
-                    SURVEY_DATASTORE.storage_strategy.data = SURVEY_DATA
-                    SURVEY_DATASTORE.store_data(data=SURVEY_DATA)
-            st.experimental_rerun()        
+                    
+            st.rerun()        
 
 def create_markers_grid(FRAME_NAME:str, DOTPOINTS_ADVANCED_OPTIONS:dict, bbox:tuple):
     centroids = markers_grid(                                
@@ -446,21 +408,20 @@ def extended_taxons_list()->list:
     return extended_list
 
 
-def show_tabs(
-        SURVEY_NAME:str = None,
+def show_tabs(        
         SURVEY_FILEPATH:str = None,
         STATION_NAME:str = None,
+        STATION_DATA:dict = {},
         FRAME_NAME:str = None,            
         ):
     
     SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
 
-    if SURVEY_DATASTORE is not None:
+    if STATION_DATA is not None:
         SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data        
-        RANDOM_FRAMES = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES']
-        VIDEO_NAME = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['VIDEO_NAME']
+        RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {})
 
-        SURVEY_DIRPATH = os.path.dirname(SURVEY_FILEPATH)
+        
         if RANDOM_FRAMES is None or len(RANDOM_FRAMES) == 0:
             st.info('**No frames to display.**')
             return
@@ -473,7 +434,7 @@ def show_tabs(
 
             # Show RAW DATA
             with tabs[-1]:
-                st.write(SURVEY_DATA) 
+                st.write(STATION_DATA) 
 
             # Show SURVEY SUMMARY
             with tabs[0]:
@@ -494,37 +455,45 @@ def show_tabs(
                                 disabled=True,)
                     
                     frame_results(
-                            SURVEY_DATA=SURVEY_DATA,
+                            STATION_DATA=STATION_DATA,
                             STATION_NAME=STATION_NAME,
                             FRAME_NAME=FRAME_NAME,                            
                             key=f'xframe_{FRAME_NAME}'
                         )
-                with st.expander(label='**SURVEY RESULTS**', expanded=True):
-                    survey_results(SURVEY_DATA)
+                #TODO: Show survey results
+                #with st.expander(label='**SURVEY RESULTS**', expanded=True):
+                #    survey_results(SURVEY_DATA)
 
                     
     else:
         st.info('**No frames to display.**')
         return
 
-def frame_dashboard(
+def frame_dashboard(        
         SURVEY_NAME:str, 
+        STATION_DATA:dict,
+        SURVEY_DATASTORE: DataStore,
         STATION_NAME:str, 
         VIDEO_NAME:str, 
-        STATION_BENTHOS_INTERPRETATION:dict, 
         substrates:list,):
 
+    # --------------------
+    RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION').get('RANDOM_FRAMES', {})
+    
     # --------------------
     frame_selected = benthos_main_menu(
         SURVEY_NAME=SURVEY_NAME,
         STATION_NAME=STATION_NAME,
         VIDEO_NAME=VIDEO_NAME,   
-        STATION_BENTHOS_INTERPRETATION=STATION_BENTHOS_INTERPRETATION
+        RANDOM_FRAMES=RANDOM_FRAMES,
     )
     # --------------------
     FRAME_INDEX = frame_selected.get('FRAME_INDEX', None)
     FRAME_NAME = frame_selected.get('FRAME_NAME', None)
     FRAME_FILEPATH = frame_selected.get('FRAME_FILEPATH', None)
+
+    
+
     FRAME_INTERPRETATION = RANDOM_FRAMES[FRAME_NAME]['INTERPRETATION']
     FRAME_INTERPRETATION['METADATA'] = frame_selected
     FRAME_INTERPRETATION['FRAME_NAME'] = FRAME_NAME
@@ -589,20 +558,19 @@ def frame_dashboard(
             dotpoints_done = FRAME_INTERPRETATION.get('DOTPOINTS_DONE', {})
             dotpoints_count = FRAME_INTERPRETATION.get('DOTPOINTS', {})
             dotpoints_selected_dict = display_grid(
-                grid=grid, 
-                disable_dotpoints=list(dotpoints_count.keys()))  # list(dotpoints_done)
+                grid=grid, disable_dotpoints=[]) 
+                # disable_dotpoints=list(dotpoints_count.keys()))  # list(dotpoints_done)
             
         
             if len(dotpoints_selected_dict) > 10:
                 st.warning(f'You can only select up to 10 dotpoints. Deselect one or more dotpoints to proceed.')
-                reset_dotpoints(
-                    key='too_many_dotpoints',
-                    dotpoint_grid_ids=dotpoints_selected_dict,
-                    dotpoints_done=dotpoints_count.keys(),
-                    SURVEY_DATA=SURVEY_DATA,
-                    SURVEY_DATASTORE=SURVEY_DATASTORE,          
-                    FRAME_INTERPRETATION=FRAME_INTERPRETATION,
-                    )
+                #reset_dotpoints(
+                #    key='too_many_dotpoints',
+                #    dotpoint_grid_ids=dotpoints_selected_dict,
+                #    dotpoints_done=dotpoints_count.keys(),
+                #    STATION_DATA=STATION_DATA,                    
+                #    FRAME_INTERPRETATION=FRAME_INTERPRETATION,
+                #    )
     
             substrate = st.selectbox(
                 label='**Substrates**',
@@ -724,15 +692,13 @@ def frame_dashboard(
             # ------------------
             confirm = st.button(label='confirm')
             
-            with st.expander(label='**Reset dotpoints**', expanded=False):
-                reset_dotpoints(
-                    key='reset_dotpoints',
-                    dotpoint_grid_ids=dotpoints_selected_dict, 
-                    dotpoints_done=dotpoints_done,
-                    SURVEY_DATA=SURVEY_DATA,
-                    SURVEY_DATASTORE=SURVEY_DATASTORE,
-                    FRAME_INTERPRETATION=FRAME_INTERPRETATION,
-                    )
+            #with st.expander(label='**Reset dotpoints**', expanded=False):
+            #    reset_dotpoints(
+            #        key='reset_dotpoints',
+            #        dotpoint_grid_ids=dotpoints_selected_dict, 
+            #        dotpoints_done=dotpoints_done,
+            #        FRAME_INTERPRETATION=FRAME_INTERPRETATION,
+            #        )
 
             if confirm:
                 if len(dotpoints_to_save) == 0:
@@ -754,9 +720,9 @@ def frame_dashboard(
 
                     # ---------
 
-                    try:
-                        SURVEY_DATASTORE.storage_strategy.data = SURVEY_DATA
-                        SURVEY_DATASTORE.store_data(data=SURVEY_DATA)
+                    try:                        
+                        SURVEY_DATASTORE.store_data(data=SURVEY_DATASTORE.storage_strategy.data)
+                        update_station_data(STATION_DATA=STATION_DATA, STATION_FILEPATH=STATION_FILEPATH)
                         st.success('**Dotpoints** saved')
                     except Exception as e:
                         st.error(traceback.print_exc())
@@ -775,29 +741,38 @@ try:
     # --------------------
     if CURRENT is None:
         st.info('**Fresh current state.**')
-    else:         
+    else:
+
         SURVEY_NAME = CURRENT.get('SURVEY_NAME', None)
+        SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
         STATION_NAME = CURRENT.get('STATION_NAME', None)
+        STATION_FILEPATH = CURRENT.get('STATION_FILEPATH', None)
+        STATION_DATA = CURRENT.get('STATION_DATA', {})
         VIDEO_NAME = CURRENT.get('VIDEO_NAME', None)
         SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
-        FRAME_NAME = CURRENT.get('FRAME_NAME', None)
+        #FRAME_NAME = CURRENT.get('FRAME_NAME', None)
+        RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION').get('RANDOM_FRAMES', {})
         
         
-        if SURVEY_FILEPATH is not None:
-            SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
+        if STATION_DATA is not None and len(STATION_DATA) > 0:
+            with st.spinner('Loading survey data...'):
+                SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
+                SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data.get('APP', {})
+
+            
             if VIDEO_NAME is None:
                 st.warning('Station with incompatible video selected or survey not initialized properly. Ensure the selected station and available video has the suffix **(***)**. Go to **Menu>Survey initialization** to initialize the survey.')
                 st.stop()            
         
-            SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data
-            STATION_BENTHOS_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]
-            RANDOM_FRAMES = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES']
-
+            
             FRAME_INTERPRETATION = frame_dashboard(
                 SURVEY_NAME=SURVEY_NAME,
+                STATION_DATA=STATION_DATA,
+                
+                SURVEY_DATASTORE=SURVEY_DATASTORE,
                 STATION_NAME=STATION_NAME,
                 VIDEO_NAME=VIDEO_NAME,            
-                STATION_BENTHOS_INTERPRETATION=STATION_BENTHOS_INTERPRETATION,
+                
                 substrates=substrates,                      
             )
             # ----
@@ -805,10 +780,10 @@ try:
                 FRAME_NAME = st.session_state['FRAME_NAME']
             else:
                 FRAME_NAME = None
-            show_tabs(
-                SURVEY_NAME=SURVEY_NAME,            
+            show_tabs(                          
                 SURVEY_FILEPATH=SURVEY_FILEPATH,
                 STATION_NAME=STATION_NAME,
+                STATION_DATA=STATION_DATA,
                 FRAME_NAME=FRAME_NAME,       
             )
         else:
