@@ -326,6 +326,10 @@ def new_survey():
                         st.session_state['APP']['SURVEY'].update(SELECTED)
 
                         data={'APP': st.session_state['APP']}
+                        if 'STATION_INDEX' not in data['APP']:
+                            data['APP']['STATION_INDEX'] = 0
+                        if 'SURVEY_INDEX' not in data['APP']:
+                            data['APP']['SURVEY_INDEX'] = 0
                         # --------------------
                         SURVEY_DATASTORE = DataStore(YamlStorage(file_path=SURVEY_FILEPATH))
                         _data = SURVEY_DATASTORE.storage_strategy.data
