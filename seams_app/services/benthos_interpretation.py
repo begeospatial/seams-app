@@ -96,6 +96,112 @@ def convert_df(df:pd.DataFrame, index:bool=False, encoding:str='utf-8'):
     return df.to_csv(index=index).encode(encoding)
 
 
+def station_results(STATION_DATA, taxons:list = [], substrates:list = []):
+
+    df = []
+    
+    summary = {}
+    STATION_NAME = STATION_DATA['METADATA']['siteName']
+    SURVEY_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['SURVEY_NAME']
+    VIDEO_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['VIDEO_NAME']
+    STATION_DIRPATH = os.path.dirname(STATION_DATA['BENTHOS_INTERPRETATION']['STATION_FILEPATH'])
+
+    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+        FRAME_INTERPRETATION = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+
+        METADATA = FRAME_INTERPRETATION.get('METADATA', {})
+        if len(METADATA) > 0:            
+            if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
+                _FRAME_INTERPRETATION = FRAME_INTERPRETATION
+                _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()
+                _df = pd.DataFrame.from_dict(_FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
+                _df['SURVEY_NAME'] = SURVEY_NAME
+                _df['STATION_NAME'] = STATION_NAME
+                _df['VIDEO_NAME'] = VIDEO_NAME
+                _df['FRAME_NAME'] = FRAME_NAME
+                for t in taxons:
+                    _df[t] = None
+                    summary[t] = 0                                                       
+                for s in substrates:
+                    _df[s] = None
+                    summary[s] = 0
+
+                for id in _IDs:
+                    is_id = _df['DOTPOINT_ID'] == id
+                    _subtrate = _df.loc[is_id, 'SUBSTRATE']
+                    _taxons = _df.loc[is_id, 'TAXONS'].tolist()[0]
+                    if isinstance(_taxons, dict):
+                        _taxons = list(_taxons.keys())
+                    if isinstance(_subtrate, dict):
+                        _subtrate = list(_subtrate.keys())[0]
+
+                    #st.write(_subtrate, _taxons)
+
+                    if _subtrate in substrates:
+                        _df.loc[is_id, _subtrate] = 1
+                        
+
+                    for t in _taxons:
+                        if t is not None:                                        
+                            if t in taxons:
+                                _df.loc[is_id, t] = 1
+                                
+
+                df.append(_df)
+                
+                                            
+        #df = pd.concat(df)
+        #df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
+
+        is_station = df['STATION_NAME'] == STATION_NAME
+
+        for t in taxons:
+            summary[t] = df.loc[is_station, t].sum()
+        for s in substrates:
+            summary[s] = df.loc[is_station, s].sum()
+
+
+        column_config = {                                        
+           
+            'frame_x_coord': {'editable': False, 'rename': False},
+            'frame_y_coord': {'editable': False, 'rename': False},
+            'DOTPOINT_ID': {'editable': False, 'rename': False},                            
+            } 
+        
+        st.markdown(f'## Percent cover `{STATION_NAME}`')
+        st.dataframe(pd.DataFrame.from_dict(summary, orient='index').T, hide_index=True)
+        st.markdown('## Survey results')
+        data_editor = st.data_editor(
+            data=df.drop(columns=['SUBSTRATE', 'TAXONS']),
+            #num_rows=10,
+            column_config= column_config,
+            key='data_editor_survey',
+            use_container_width=True, 
+            hide_index=True,
+            column_order=['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord']+ taxons + substrates,
+            disabled=True,
+            )
+        
+
+        st.write(summary)
+        st.divider()           
+
+        save_to_file = st.button(label='Save file `csv`', key=f'button_save_survey')
+        if save_to_file:
+            filename = os.path.join(STATION_DIRPATH, f'SEAMS_{SURVEY_NAME}_RESULTS_{STATION_NAME}.csv')
+            with st.spinner('Saving file...'):
+                   df.to_csv(
+                       os.path.join(filename),
+                        encoding='utf-8',
+                        index=False,
+                        )
+                
+            if os.path.exists(filename):
+                st.info(f'File saved: {filename}')
+                st.balloons()
+
+
+
 def survey_results(SURVEY_DATA):
 
     df = []
@@ -409,8 +515,7 @@ def extended_taxons_list()->list:
 
 
 def show_tabs(        
-        SURVEY_FILEPATH:str = None,
-        STATION_NAME:str = None,
+        SURVEY_FILEPATH:str = None,        
         STATION_DATA:dict = {},
         FRAME_NAME:str = None,            
         ):
@@ -420,6 +525,8 @@ def show_tabs(
     if STATION_DATA is not None:
         SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data        
         RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {})
+        TAXONS = list(SURVEY_DATA['APP']["TAXONS"].keys())
+        SUBSTRATES = list(SURVEY_DATA['APP']["SUBSTRATES"].keys())
 
         
         if RANDOM_FRAMES is None or len(RANDOM_FRAMES) == 0:
@@ -430,7 +537,7 @@ def show_tabs(
             FRAME_NAMES = {i+1: k for i, k in enumerate(RANDOM_FRAMES.keys())}
 
             # Adding 'RAW DATA' tab at the end
-            tabs = st.tabs(['**RESULTS** |', '**RAW DATA** |'])
+            tabs = st.tabs(['**STATION RESULTS** |', '**RAW DATA** |'])
 
             # Show RAW DATA
             with tabs[-1]:
@@ -438,7 +545,7 @@ def show_tabs(
 
             # Show SURVEY SUMMARY
             with tabs[0]:
-                with st.expander(label='**FRAME SUMMARY**', expanded=True):
+                with st.expander(label='**STATION SUMMARY**', expanded=True):
                     _status = [f"{i} | {k}" for i, k in FRAME_NAMES.items() if RANDOM_FRAMES[k]["INTERPRETATION"]["STATUS"] == "COMPLETED"]
                     
                     col1, col2 = st.columns([1,1])
@@ -455,14 +562,14 @@ def show_tabs(
                                 disabled=True,)
                     
                     frame_results(
-                            STATION_DATA=STATION_DATA,
-                            STATION_NAME=STATION_NAME,
+                            STATION_DATA=STATION_DATA,                            
                             FRAME_NAME=FRAME_NAME,                            
                             key=f'xframe_{FRAME_NAME}'
                         )
                 #TODO: Show survey results
-                #with st.expander(label='**SURVEY RESULTS**', expanded=True):
-                #    survey_results(SURVEY_DATA)
+                with st.expander(label='**SURVEY RESULTS**', expanded=True):
+                    station_results(STATION_DATA, taxons=TAXONS, substrates=SUBSTRATES)
+                    #survey_results(STATIONS_DIRPATH)
 
                     
     else:
@@ -780,12 +887,11 @@ try:
                 FRAME_NAME = st.session_state['FRAME_NAME']
             else:
                 FRAME_NAME = None
-            show_tabs(                          
-                SURVEY_FILEPATH=SURVEY_FILEPATH,
-                STATION_NAME=STATION_NAME,
-                STATION_DATA=STATION_DATA,
-                FRAME_NAME=FRAME_NAME,       
-            )
+            #show_tabs(                          
+            #    SURVEY_FILEPATH=SURVEY_FILEPATH,                
+            #    STATION_DATA=STATION_DATA,
+            #    FRAME_NAME=FRAME_NAME,       
+            #)
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
                 
