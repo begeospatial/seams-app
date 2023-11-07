@@ -514,6 +514,31 @@ def extended_taxons_list()->list:
     return extended_list
 
 
+def toggle_dotpoint(dotpoint_number)->dict:
+    dictionary = st.session_state
+
+    key = f"dotpoint_{dotpoint_number}"
+    if key in dictionary:
+        dictionary[key] = not dictionary[key]
+
+    st.session_state = dictionary
+    return dictionary
+
+def set_dotpoints(dotpoint_indexes:list, value:bool =True)->dict:
+    dictionary = st.session_state
+    for dotpoint_index in dotpoint_indexes:
+        key = f"dotpoint_{dotpoint_index}"
+        if key in dictionary:
+            dictionary[key] = value
+    st.session_state = dictionary
+    return dictionary
+
+
+def flatten_list(input_list:list)->list:
+    flattened = [value for sublist in input_list for value in sublist]
+    return flattened
+
+
 def show_tabs(        
         SURVEY_FILEPATH:str = None,        
         STATION_DATA:dict = {},
@@ -652,16 +677,17 @@ def frame_dashboard(
 
 
     centroids_dict = { i+1: centroid for i, centroid in enumerate(centroids) }
-    grid = generate_toggle_buttons_grid(n_rows=n_rows)                        
+    grid = generate_toggle_buttons_grid(n_rows=n_rows)
+    dotpoints_indexes = flatten_list(grid)                        
 
     with st.container():
-        icol1, icol2 = st.columns([5,1])                
+        icol1, icol2, icol3 = st.columns([15,1,3])                
         with icol1:
             
             modified_image = floating_marker(image, centroids_dict=centroids_dict)
             st.image(modified_image)
-
-        with icol2:
+            
+        with icol3:
             dotpoints_done = FRAME_INTERPRETATION.get('DOTPOINTS_DONE', {})
             dotpoints_count = FRAME_INTERPRETATION.get('DOTPOINTS', {})
             dotpoints_selected_dict = display_grid(
@@ -678,12 +704,41 @@ def frame_dashboard(
                 #    STATION_DATA=STATION_DATA,                    
                 #    FRAME_INTERPRETATION=FRAME_INTERPRETATION,
                 #    )
-    
+
+            bc1, bc2 = st.columns([1,1])
+            with bc1:
+                    
+                select_all_dotpoints = st.button(
+                    label='**:blue[select all]**', 
+                    help='Select all dotpoints',
+                    key='select_all_dotpoints',
+                    #label_visibility='hidden'                
+                    )
+                
+                if select_all_dotpoints:                
+                    set_dotpoints(dotpoint_indexes=dotpoints_indexes, value=True)
+                    st.rerun()
+            with bc2:
+                deselect_all_dotpoints = st.button(
+                    label=':red[deselect all]', 
+                    help='Deselect all dotpoints',
+                    key='deselect_all_dotpoints',
+                    #label_visibility='hidden'                
+                    )
+                
+                if deselect_all_dotpoints:                
+                    set_dotpoints(dotpoint_indexes=dotpoints_indexes, value=False)
+                    st.rerun() 
+
+
+                
+            # ---
             substrate = st.selectbox(
                 label='**Substrates**',
                 options=[s[0] for s in substrates],
                 help='Select the **substrate** present for the selected `dotpoints` in the frame.',
-                placeholder='Select substrate',                            
+                placeholder='Select substrate',
+                index=None,                            
                 )
             
             
@@ -826,7 +881,7 @@ def frame_dashboard(
                         FRAME_INTERPRETATION['STATUS'] = Status.NOT_STARTED.value
 
                     # ---------
-
+                    
                     try:                        
                         SURVEY_DATASTORE.store_data(data=SURVEY_DATASTORE.storage_strategy.data)
                         update_station_data(STATION_DATA=STATION_DATA, STATION_FILEPATH=STATION_FILEPATH)
@@ -835,10 +890,14 @@ def frame_dashboard(
                         st.error(traceback.print_exc())
                         st.error('**Dotpoints** not saved')
                     else:
+                        set_dotpoints(dotpoint_indexes=dotpoints_indexes, value=False)
                         return FRAME_INTERPRETATION
 
 try:
     suffix = st.session_state.get('suffix', '***')
+
+    with st.expander(label='DEBUG'):
+        st.write(st.session_state)
 
     build_header()
 
