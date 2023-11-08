@@ -503,76 +503,6 @@ def partially_reset_session(keep_keys: list = ['CONFIG', 'SURVEY']):
 
 
 
-def DEPRECIATED_process_yaml_files(yaml_files):
-    """
-    Process each YAML file in the provided dictionary to extract specific benthos interpretation information.
-
-    Parameters:
-    - yaml_files (dict): Dictionary containing YAML filenames as keys and their respective file paths as values.
-
-    Returns:
-    - dict: A modified dictionary based on the input 'yaml_files' where each entry is augmented with benthos interpretation data, specifically 'FRAMES' and 'RANDOM_FRAMES'.
-
-    Workflow:
-    - For each file in the input dictionary, load its content.
-    - Check if the YAML content has keys 'APP' and 'BENTHOS_INTERPRETATION'.
-    - If the conditions are met, iterate over each station in 'BENTHOS_INTERPRETATION' and extract information about 'FRAMES' and 'RANDOM_FRAMES'.
-    - Update the input dictionary with the extracted information.
-
-    Dependencies:
-    - Requires a function or module 'load_yaml' to load the content of a YAML file. This dependency is assumed to be defined elsewhere in the codebase.
-    
-    Example Usage:
-    >>> yaml_dict = {
-        'config.yaml': '/path/to/config.yaml'
-    }
-    >>> processed_files = process_yaml_files(yaml_dict)
-    >>> processed_files
-    {
-        'config.yaml': {
-            'STATIONS': {
-                'station_1': {
-                    'FRAMES': [...],
-                    'RANDOM_FRAMES': [...]
-                },
-                ...
-            }
-        }
-    }
-
-    Notes:
-    - Only YAML files containing both 'FRAMES' and 'RANDOM_FRAMES' under the 'BENTHOS_INTERPRETATION' key will have this data extracted and added to the result.
-    - If a YAML file does not match the expected structure or lacks the required keys, it will remain unchanged in the returned dictionary.
-    """
-    for filename, filepath in yaml_files.items():
-        content = load_yaml(filepath)
-
-        if 'APP' in content and 'BENTHOS_INTERPRETATION' in content['APP']:
-            video_interpretation = content['APP']['BENTHOS_INTERPRETATION']
-            stations = {}
-            
-            for station_key, station_value in video_interpretation.items():
-                has_frames = 'FRAMES' in station_value
-                has_random_frames = 'RANDOM_FRAMES' in station_value
-
-                if has_frames and has_random_frames:
-                    stations[station_key] = {
-                        'FRAMES': station_value['FRAMES'],
-                        'RANDOM_FRAMES': station_value['RANDOM_FRAMES']
-                    }
-            
-            yaml_files[filename]['STATIONS'] = stations
-            
-    return yaml_files
-
-
-
-
-
-
-
-
-
 def survey_selector_box(SURVEYS_AVAILABLE:dict, index:int = 0, format_func: callable = lambda x:f'{x}')->tuple:
     """
     Presents a Streamlit selectbox widget for users to choose a survey from a list of available ones.
@@ -621,6 +551,13 @@ def survey_selector_box(SURVEYS_AVAILABLE:dict, index:int = 0, format_func: call
         st.session_state['SURVEY_INDEX'] = SURVEY_INDEX
         
         SURVEY_FILEPATH = SURVEYS_AVAILABLE[SURVEY_NAME]
+        st.session_state['CURRENT']['SURVEY_INDEX'] = SURVEY_INDEX
+        st.session_state['CURRENT']['SURVEY_NAME'] = SURVEY_NAME
+        st.session_state['CURRENT']['SURVEY_FILEPATH'] = SURVEY_FILEPATH
+
+        update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
+
+
         return SURVEY_NAME, SURVEY_FILEPATH
     else:
         return None
@@ -772,6 +709,8 @@ def show_random_frames(
                             } for k in RANDOM_FRAMES_IDS}
                         
                         STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
+                        st.session_state['CURRENT']['VIDEO_NAME'] = _VIDEO_NAME                        
+                        update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH']) 
 
 
                 # --------------------        
@@ -784,13 +723,16 @@ def show_random_frames(
                         if is_ready:
                             is_ready_for_interpretation = True
                             STATION_DATA['BENTHOS_INTERPRETATION']['IS_READY'] = is_ready_for_interpretation
+                            st.session_state['CURRENT']['IS_READY'] = is_ready_for_interpretation
+                            
                             with st.spinner():
                                 update_station_data(
                                     STATION_DATA=STATION_DATA,
                                     STATION_FILEPATH=STATION_FILEPATH,
                                 )
                             
-                            CURRENT = st.session_state['CURRENT']
+                            st.session_state['CURRENT']['STATION_DATA'] = STATION_DATA
+                            update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH']) 
                             
                             
                             st.toast('go to **MENU > Benthos interpretation**')                            
@@ -908,7 +850,7 @@ def save_stations(STATIONS:dict, VIDEOS:dict, SURVEY_DIRPATH:str, fileExtension:
         st.session_state['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
         return STATIONS_FILEPATHS
     else:
-        raise ValueError("No valid stations found to save.")        
+        raise ValueError("No valid stations found to save or Survey not yet fully initialized.")        
 
 
 
@@ -1071,6 +1013,7 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILE
                     STATIONS_FILEPATHS =  save_stations(STATIONS=VIDEO_STATIONS, VIDEOS=VIDEOS, SURVEY_DIRPATH=SURVEY_DATA['SURVEY']['SURVEY_DIRPATH'])
                     SURVEY_DATA['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
                     # SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
+                    update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])   
                     
                 st.session_state['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
                 
@@ -1426,6 +1369,12 @@ def stations_selector_box(STATIONS_AVAILABLE:dict, index:int = 0, format_func:ca
         STATION_FILEPATH = STATIONS_AVAILABLE[STATION_NAME]
         STATION_INDEX = STATIONS_OPTIONS.index(STATION_NAME)
         st.session_state['STATION_INDEX'] = STATION_INDEX
+
+        st.session_state['CURRENT']['STATION_NAME'] = STATION_NAME
+        st.session_state['CURRENT']['STATION_FILEPATH'] = STATION_FILEPATH
+        st.session_state['CURRENT']['STATION_INDEX'] = STATION_INDEX
+        
+        update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
         
     else:
         STATION_NAME = None
@@ -1442,7 +1391,7 @@ def main_menu():
     SURVEY_DATASTORE = None
     SURVEY_DATA = {}
     STATIONS_AVAILABLE = None
-    VIDEOS_AVAILABLE = None
+    LOCAL_VIDEOS = {}
     STATION_NAME = None
     STATION_FILEPATH = None
     STATION_DATA = {}
@@ -1527,8 +1476,9 @@ def main_menu():
                             key='video_selectbox',
                             format_func= lambda x: f'{x}')    # {suffix}' if has_random_frames and x==_VIDEO_NAME else x
                 
-                st.session_state['CURRENT']['VIDEO_NAME'] = VIDEO_NAME
-                st.session_state['CURRENT']['RANDOM_FRAMES'] = RANDOM_FRAMES
+                st.session_state['CURRENT']['VIDEO_NAME'] = VIDEO_NAME                
+
+                update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
 
             else:
                 st.warning('**:red[No videos available]**. Add the relevant videos in the survey **VIDEOS** folder. Refresh the browser window and try again.')
@@ -1537,6 +1487,22 @@ def main_menu():
 
 try:
     build_header()
+    DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
+    
+    CURRENT_FILENAME = 'seams_current_cache_data.yaml'
+    CURRENT_FILEPATH = os.path.join(DATA_DIRPATH, CURRENT_FILENAME)        
+
+    if CURRENT_FILENAME not in os.listdir(DATA_DIRPATH):
+        st.warning('**Initializing survey data**.') 
+        CURRENT = {}
+        update_station_data(STATION_DATA=CURRENT, STATION_FILEPATH=CURRENT_FILEPATH)            
+    else:            
+        CURRENT = load_yaml(CURRENT_FILEPATH)
+
+    
+    st.session_state['CURRENT'] = CURRENT
+    st.session_state['CURRENT_FILEPATH'] = CURRENT_FILEPATH
+        
 
     show_stations_data_editor = False
     if 'SURVEY_INDEX' not in st.session_state:
@@ -1544,13 +1510,6 @@ try:
             
     if 'STATION_INDEX' not in st.session_state:
         st.session_state['STATION_INDEX'] = 0
-
-    if 'CURRENT' not in st.session_state:
-        st.session_state['CURRENT'] = {}
-
-
-    with st.expander('DEBUG'):
-        st.write(st.session_state)
 
     # --------------------
     SURVEY_NAME, SURVEY_DATA, SURVEY_FILEPATH, SURVEY_DATASTORE, STATION_DATA, STATION_NAME, STATION_FILEPATH, VIDEO_NAME, LOCAL_VIDEOS = main_menu()
@@ -1580,6 +1539,7 @@ try:
                 )
                 
         st.session_state['CURRENT']['STATION_DATA'] = STATION_DATA
+        
     
     
     

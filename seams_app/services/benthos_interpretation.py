@@ -1,4 +1,5 @@
 import os
+import random
 import streamlit as st
 import pandas as pd
 from PIL import Image
@@ -7,6 +8,7 @@ from enum import Enum
 import traceback
 from bgstools.datastorage import DataStore
 from bgstools.stt import toggle_button
+from bgsio import load_yaml
 
 from seafloor import substrates, phytobenthosCommonTaxa, \
 STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAXONS
@@ -14,7 +16,6 @@ STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAX
 from markers import create_bounding_box, markers_grid, floating_marker 
 from custom_options import SGU_custom_options
 from seams_utils import update_station_data, load_datastore
-
 
 class Status(Enum):
     IN_PROGRESS = 'IN_PROGRESS'  # 'ICON': ':hourglass_flowing_sand:'
@@ -439,7 +440,7 @@ def display_grid(grid, disable_dotpoints:list = [])->dict:
                 toggle_button(                    
                     label = str(counter), 
                     key=f'dotpoint_{counter}',
-                    disabled= True if counter in disable_dotpoints else False, 
+                    disabled= True if str(counter) in disable_dotpoints else False, 
                     )
                 # adds the dotpoint to the dictionary if it is selected
 
@@ -607,7 +608,10 @@ def frame_dashboard(
         SURVEY_DATASTORE: DataStore,
         STATION_NAME:str, 
         VIDEO_NAME:str, 
-        substrates:list,):
+        substrates:list,        
+        ):
+    
+    do_substrates = False
 
     # --------------------
     RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION').get('RANDOM_FRAMES', {})
@@ -678,32 +682,43 @@ def frame_dashboard(
 
     centroids_dict = { i+1: centroid for i, centroid in enumerate(centroids) }
     grid = generate_toggle_buttons_grid(n_rows=n_rows)
-    dotpoints_indexes = flatten_list(grid)                        
+    dotpoints_indexes = flatten_list(grid)
+    if 'disable_extra_dotpoints_list' not in st.session_state['CURRENT']:
+        randomly_selected_dotpoints_list = random.sample(dotpoints_indexes, 10)
+        disable_extra_dotpoints_list = [i for i in dotpoints_indexes if i not in randomly_selected_dotpoints_list]
+        st.session_state['CURRENT']['disable_extra_dotpoints_list'] = disable_extra_dotpoints_list
+    else:
+        disable_extra_dotpoints_list = st.session_state['CURRENT']['disable_extra_dotpoints_list']
 
     with st.container():
-        icol1, icol2, icol3 = st.columns([15,1,3])                
+        icol1, _, icol3 = st.columns([15,1,3])                
         with icol1:
             
             modified_image = floating_marker(image, centroids_dict=centroids_dict)
             st.image(modified_image)
             
         with icol3:
+            # ------------------
+            taxsub1, taxsub2 = st.columns([1,2])
+            with taxsub1:
+                st.markdown('**Taxons**')
+            with taxsub2:
+                do_substrates = st.toggle(label='**Substrates**', key='do_substrates', value=False)
+            
+
+          
+
+
             dotpoints_done = FRAME_INTERPRETATION.get('DOTPOINTS_DONE', {})
             dotpoints_count = FRAME_INTERPRETATION.get('DOTPOINTS', {})
             dotpoints_selected_dict = display_grid(
-                grid=grid, disable_dotpoints=[]) 
-                # disable_dotpoints=list(dotpoints_count.keys()))  # list(dotpoints_done)
+                grid=grid, disable_dotpoints=disable_extra_dotpoints_list) 
+                #disable_dotpoints=list(dotpoints_count.keys()))  # list(dotpoints_done)
             
-        
             if len(dotpoints_selected_dict) > 10:
                 st.warning(f'You can only select up to 10 dotpoints. Deselect one or more dotpoints to proceed.')
-                #reset_dotpoints(
-                #    key='too_many_dotpoints',
-                #    dotpoint_grid_ids=dotpoints_selected_dict,
-                #    dotpoints_done=dotpoints_count.keys(),
-                #    STATION_DATA=STATION_DATA,                    
-                #    FRAME_INTERPRETATION=FRAME_INTERPRETATION,
-                #    )
+            
+            # ------------------
 
             bc1, bc2 = st.columns([1,1])
             with bc1:
@@ -733,80 +748,94 @@ def frame_dashboard(
 
                 
             # ---
-            substrate = st.selectbox(
-                label='**Substrates**',
-                options=[s[0] for s in substrates],
-                help='Select the **substrate** present for the selected `dotpoints` in the frame.',
-                placeholder='Select substrate',
-                index=None,                            
-                )
-            
-            
-            _taxons = st.multiselect(
-                label='**Taxons**',
-                default=['Bare substrate'],
-                options= extended_taxons_list(),
-                help='Select the **taxons** present under the selected `dotpoints` in the frame.',
-                placeholder='Select taxa',
-                key='taxons_multiselect'
-
-                )
-            
-            taxa_to_flag = [t for t in _taxons]
-
-            # ----------------           
-            with st.expander(label='**Taxa flags**', expanded=False):
+            if do_substrates:
                     
-                if len(taxa_to_flag) > 0:
-                    flag_taxa = st.selectbox(
-                        label = 'Taxa to flag', 
-                        options=['---'] + taxa_to_flag if taxa_to_flag is not None  and len(taxa_to_flag)>0 else [],
-                        index=0,
-                        help='Select **taxa** to apply flags',
-                        placeholder='Select a taxa to apply flags',)
-                    
-                    if flag_taxa != '---':
-                            
-                        SFLAG_options = [s for s in SPECIES_FLAGS['SFLAG']]
-                        SFLAG = st.selectbox(
-                            label = 'SFLAG(s)', 
-                            options=['---'] + SFLAG_options if SFLAG_options is not None  and len(SFLAG_options)>0 else [],
-                            help='Select the **taxon flags** present in the selected taxa',)
-                        
-                        SFLAG_string = f'SFLAG {SFLAG}' if SFLAG != '---' else ''
-                        
-                        if SFLAG != '---':
-                            st.info(SPECIES_FLAGS['SFLAG'][SFLAG])
-                        
-                        STRID_options = sorted([s for s in STRATUM_ID['CODE']])
-                        STRID = st.selectbox(
-                            label = 'STRID - Stratum ID', 
-                            options=['---'] + STRID_options if STRID_options is not None  and len(STRID_options)>0 else [],
-                            help='Select the **taxon rid** present in the selected taxa',)
+                substrate = st.selectbox(
+                    label='**Substrates**',
+                    options=[s[0] for s in substrates],
+                    help='Select the **substrate** present for the selected `dotpoints` in the frame.',
+                    placeholder='Select substrate',
+                    index=None,                            
+                    )
+                
+                st.session_state['CURRENT']['substrate'] = substrate
 
-                        if STRID != '---':
-                            st.info(STRATUM_ID['CODE'][STRID])
-                    # ------------------
+                
+                # ------------------
+            else:
+                
+                _taxons = st.multiselect(
+                    label='**Taxons**',
+                    # default=['Bare substrate'],
+                    options= extended_taxons_list(),
+                    help='Select the **taxons** present under the selected `dotpoints` in the frame.',
+                    placeholder='Select taxa',
+                    key='taxons_multiselect',                
 
-                        STRID_string = STRID if STRID != '---' else ''
+                    )
+                
+                taxa_to_flag = [t for t in _taxons]
+                st.session_state['CURRENT']['taxa_to_flag'] = taxa_to_flag
 
-                        flag_taxa_string = f'{flag_taxa} {SFLAG_string} {STRID_string}'
-                        flagged_taxa = flag_taxa_string.strip()
+                # ----------------           
+                with st.expander(label='**Taxa flags**', expanded=False):
                         
-                        if STRID != '---' or SFLAG != '---':
-                            keep_only_flagged_taxa = st.checkbox(
-                                label=f'**keep only :blue[{flagged_taxa}]** and remove **:red[{flag_taxa}]**', 
-                                value=True, 
-                                help=f'If enabled, ***{flag_taxa}*** will removed from the taxons and only **{flagged_taxa}** will be kept.')
-                            if not keep_only_flagged_taxa:
-                                taxa_to_flag.append(flagged_taxa)
+                    if len(taxa_to_flag) > 0:
+                        flag_taxa = st.selectbox(
+                            label = 'Taxa to flag', 
+                            options=['---'] + taxa_to_flag if taxa_to_flag is not None  and len(taxa_to_flag)>0 else [],
+                            index=0,
+                            help='Select **taxa** to apply flags',
+                            placeholder='Select a taxa to apply flags',)
+                        
+                        if flag_taxa != '---':
                                 
-                            else:
-                                taxa_to_flag.remove(flag_taxa)
-                                taxa_to_flag.append(flagged_taxa)
+                            SFLAG_options = [s for s in SPECIES_FLAGS['SFLAG']]
+                            SFLAG = st.selectbox(
+                                label = 'SFLAG(s)', 
+                                options=['---'] + SFLAG_options if SFLAG_options is not None  and len(SFLAG_options)>0 else [],
+                                help='Select the **taxon flags** present in the selected taxa',)
+                            
+                            SFLAG_string = f'SFLAG {SFLAG}' if SFLAG != '---' else ''
+                            
+                            if SFLAG != '---':
+                                st.info(SPECIES_FLAGS['SFLAG'][SFLAG])
+                            
+                            STRID_options = sorted([s for s in STRATUM_ID['CODE']])
+                            STRID = st.selectbox(
+                                label = 'STRID - Stratum ID', 
+                                options=['---'] + STRID_options if STRID_options is not None  and len(STRID_options)>0 else [],
+                                help='Select the **taxon rid** present in the selected taxa',)
+
+                            if STRID != '---':
+                                st.info(STRATUM_ID['CODE'][STRID])
+                        # ------------------
+
+                            STRID_string = STRID if STRID != '---' else ''
+
+                            flag_taxa_string = f'{flag_taxa} {SFLAG_string} {STRID_string}'
+                            flagged_taxa = flag_taxa_string.strip()
+                            
+                            if STRID != '---' or SFLAG != '---':
+                                keep_only_flagged_taxa = st.checkbox(
+                                    label=f'**keep only :blue[{flagged_taxa}]** and remove **:red[{flag_taxa}]**', 
+                                    value=True, 
+                                    help=f'If enabled, ***{flag_taxa}*** will removed from the taxons and only **{flagged_taxa}** will be kept.')
+                                if not keep_only_flagged_taxa:
+                                    taxa_to_flag.append(flagged_taxa)
+                                    st.session_state['CURRENT']['taxa_to_flag'] = taxa_to_flag
+                                    
+                                else:
+                                    taxa_to_flag.remove(flag_taxa)
+                                    taxa_to_flag.append(flagged_taxa)
+                                    st.session_state['CURRENT']['taxa_to_flag'] = taxa_to_flag
             # ------------------
+            # TODO: redo this considering the taxons vs substrates selector
+            
             overall_taxons = {i:True for i in taxa_to_flag}
             _substrate =  {substrate:True}
+
+
             dotpoints_to_save = set(dotpoints_selected_dict).difference(set(dotpoints_done))
             dotpoints = {i : {
                     'DOTPOINT_ID': i,
@@ -892,22 +921,63 @@ def frame_dashboard(
                     else:
                         set_dotpoints(dotpoint_indexes=dotpoints_indexes, value=False)
                         return FRAME_INTERPRETATION
+# --------------
+# --------------
+def dict_to_dataframe(RANDOM_FRAMES):
+    frames_data = []
+    for frame_key, frame_info in RANDOM_FRAMES.items():
+        
+        
+        for dotpoint_id, dotpoint_info in frame_info['INTERPRETATION']['DOTPOINTS'].items():
+            taxons_list = [taxon for taxon, value in dotpoint_info["TAXONS"].items() if value]
+            substrate_list = [substrate for substrate, value in dotpoint_info["SUBSTRATE"].items() if value]
+
+            row_data = {
+                "FRAME_KEY": frame_key,                
+                "DOTPOINT_ID": dotpoint_id,
+                "frame_x_coord": dotpoint_info["frame_x_coord"],
+                "frame_y_coord": dotpoint_info["frame_y_coord"],
+                "TAXONS": taxons_list,
+                "SUBSTRATE": substrate_list,
+                "boundary_width": dotpoint_info["boundary_width"],
+                "boundary_height": dotpoint_info["boundary_height"],
+                "FILEPATH": frame_info["FILEPATH"]
+            }
+            frames_data.append(row_data)
+
+    df = pd.DataFrame(frames_data)
+    return df
+                    
+            
+        
 
 try:
-    suffix = st.session_state.get('suffix', '***')
-
-    with st.expander(label='DEBUG'):
-        st.write(st.session_state)
-
-    build_header()
-
+    DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
     
-    CURRENT = st.session_state.get('CURRENT', None)
+    CURRENT_FILENAME = 'seams_current_cache_data.yaml'
+    CURRENT_FILEPATH = os.path.join(DATA_DIRPATH, CURRENT_FILENAME)        
 
-    # --------------------
-    if CURRENT is None:
-        st.info('**Fresh current state.**')
+    if CURRENT_FILENAME not in os.listdir(DATA_DIRPATH):
+        st.warning('**Fresh current state**. Please Initializing survey data from `MENU`>`Stations initialization`**') 
+        st.stop()
     else:
+        CURRENT = load_yaml(CURRENT_FILEPATH)
+        st.session_state['CURRENT'] = CURRENT
+        st.session_state['CURRENT_FILEPATH'] = CURRENT_FILEPATH
+
+
+        with st.expander(label='DEBUG'):
+            st.write(CURRENT)
+
+        build_header()
+        suffix = st.session_state.get('suffix', '***')
+
+        # --------------------
+        #if CURRENT is None:
+        #    st.warning('**Fresh current state**. Please Initializing survey data from `MENU`>`Stations initialization`**') 
+        #    st.stop()
+
+        #else:
 
         SURVEY_NAME = CURRENT.get('SURVEY_NAME', None)
         SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
@@ -916,7 +986,7 @@ try:
         STATION_DATA = CURRENT.get('STATION_DATA', {})
         VIDEO_NAME = CURRENT.get('VIDEO_NAME', None)
         SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
-        #FRAME_NAME = CURRENT.get('FRAME_NAME', None)
+        FRAME_NAME = CURRENT.get('FRAME_NAME', None)
         RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION').get('RANDOM_FRAMES', {})
         
         
@@ -944,8 +1014,16 @@ try:
             # ----
             if 'FRAME_NAME' in st.session_state:
                 FRAME_NAME = st.session_state['FRAME_NAME']
+                st.session_state['CURRENT']['FRAME_NAME'] = FRAME_NAME
+                update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
             else:
                 FRAME_NAME = None
+
+
+            if RANDOM_FRAMES is not None and len(RANDOM_FRAMES) > 0:
+                df = dict_to_dataframe(RANDOM_FRAMES)
+                st.write(df)
+
             #show_tabs(                          
             #    SURVEY_FILEPATH=SURVEY_FILEPATH,                
             #    STATION_DATA=STATION_DATA,
@@ -953,7 +1031,7 @@ try:
             #)
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
-                
+            
 
 except Exception as e:
     trace_error = traceback.print_exc()

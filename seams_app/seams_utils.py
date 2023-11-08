@@ -176,3 +176,11 @@ def load_datastore(survey_filepath:str):
         raise ValueError(f"Failed to load data from {survey_filepath}: {str(e)}")
         
     return datastore
+
+
+def delete_file(file_path):
+    try:
+        os.remove(file_path)
+        print(f"File '{file_path}' has been deleted.")
+    except OSError as e:
+        print(f"Error: {e}")

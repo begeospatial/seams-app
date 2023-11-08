@@ -5,6 +5,7 @@ from bgsio import get_available_services, create_directory_list, check_directory
 from bgstools.stt import build_activities_menu
 from bgsio import load_toml_variables, create_subdirectory, create_new_directory
 from bgstools.datastorage import DataStore, YamlStorage
+from seams_utils import update_station_data, delete_file
 
 # --------------------
 st.set_page_config(
@@ -152,6 +153,11 @@ def delete_subdirectory_with_confirmation(directory_path: str, btn_label: str = 
                     st.session_state['APP']['STATIONS']= {}
                     st.session_state['APP']['VIDEOS']= {}                    
                     st.session_state.pop('SURVEY_DATASTORE', None)
+                    st.cache_data.clear()
+                    st.cache_data()
+                    st.session_state['CURRENT'] = {}
+                    #delete_file(st.session_state.get('CURRENT_FILEPATH', None))
+                    update_station_data({}, st.session_state['CURRENT_FILEPATH'])
                     st.rerun()
                 except Exception as e:
                     st.error(f"An error occurred while deleting the subdirectory: {e}")
