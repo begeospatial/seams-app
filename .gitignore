@@ -6,6 +6,7 @@ secrets/
 leftovers*
 survey_data/
 /seams/data/
+seams_current_cache_data.yaml
 *Zone.Identifier
 pgdata/
 geodata/
