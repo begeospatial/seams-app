@@ -837,50 +837,14 @@ def substrates_interpretation(substrates:dict)->dict:
     else:
         return {}
 
-def data_editor_taxon_with_multiselect(taxons:list, df:pd.DataFrame = None):
-    """
-    Visualizes a table with one column called `TAXONS` with 10 rows, where the user can use a Streamlit multiselect on each cell of the data editor to select from a list of `taxons`.
-
-    Args:
-        taxons: A list of taxons to display in the multiselect widget.
-
-    Returns:
-        A Pandas DataFrame containing the user's selections.
-    """
-
-    if df is None:
-        # Create a Pandas DataFrame with 10 rows and one column called `TAXONS`.
-        df = pd.DataFrame({'DOTPOINT_ID': [i+1 for i in range(10)], 'TAXONS': [None for i in range(10)]})
-
-    # Create a Streamlit data editor widget for the DataFrame.
-    edited_df = st.data_editor(df, hide_index=True, column_config={'TAXONS': st.column_config.MultiSelectColumn(options=taxons)})
-
-    # Return the user's selections.
-    return edited_df
 
 
-def data_editor_substrates_with_selectbox(substrates, df:pd.DataFrame = None):
-    """
-    Visualizes a table with one column called `SUBSTRATE` with 10 rows, where the user can use a Streamlit selectbox on each cell of the data editor to select a single substrate.
-
-    Args:
-        substrates: A list of substrates to display in the selectbox widget.
-
-    Returns:
-        A Pandas DataFrame containing the user's selections.
-    """
-    if df is None:
-        # Create a Pandas DataFrame with 10 rows and one column called `SUBSTRATE`.
-        df = pd.DataFrame({'SUBSTRATE': [None for i in range(10)]})
-    
-    # Create a Streamlit data editor widget for the DataFrame.
-    edited_df = st.data_editor(df, hide_index=True, column_config={'SUBSTRATE': st.column_config.SelectboxColumn(options=substrates)})
-
-    # Return the user's selections.
-    return edited_df
-
-
-def data_editor_with_selectbox_10_columns(data_config_dict:dict, colnames: list=range(1,11), num_rows='dynamic'):
+def seafloor_interpretation_data_editor(
+        data_config_dict:dict, 
+        colnames: list=range(1,11), 
+        df: pd.DataFrame= None,  
+        num_rows='dynamic', 
+        width='small'):
     """
     Visualizes a table with 10 columns, named 1 to 10, with a single row that can be added to, where the user can use a Streamlit single-select selectbox in each cell of the data editor to select a single taxon from a list of taxons.
 
@@ -895,27 +859,118 @@ def data_editor_with_selectbox_10_columns(data_config_dict:dict, colnames: list=
     df = pd.DataFrame({str(i): [None] for i in colnames})
     dotpoint_type = data_config_dict['dotpoint_type']
 
-    st.markdown(f'## DotPoints **{str(dotpoint_type).capitalize()}**')
+    st.expander(label=f'**{str(dotpoint_type).upper()}**', expanded=True,)
+    st.markdown(
+        f'DotPoints **{str(dotpoint_type).upper()}**', 
+        help=f'Select the **{str(dotpoint_type).upper()}** present for the selected `dotpoints` in the frame. Double click to show the options',
+    )
     
     # Create a Streamlit data editor widget for the DataFrame.
     edited_df = st.data_editor(
         df,
         hide_index=False,
-        num_rows=num_rows, 
+        num_rows=num_rows,
+        use_container_width=True,
         column_config={
             f'{i}': st.column_config.SelectboxColumn(
                 label=f'{i}',
                 options=options,
-                width='small',
+                width=width,
                 required=True,
                 )
                 for i in colnames},
 
-        key='data_editor_taxon',
+        key=f'data_editor_{dotpoint_type}',
+        
         )
 
     # Return the user's selections.
     return edited_df
+
+
+def taxons_selector(taxa_to_flag: list, SPECIES_FLAGS:dict=SPECIES_FLAGS, STRATUM_ID:dict=STRATUM_ID)->list:
+
+    # ----------------           
+    with st.expander(label='**Taxa to Species flags**', expanded=False):
+        if len(taxa_to_flag) > 0:
+            flag_taxa = st.selectbox(
+                label = 'Taxa to flag', 
+                options=['---'] + taxa_to_flag if taxa_to_flag is not None  and len(taxa_to_flag)>0 else [],
+                index=0,
+                help='Select **taxa** to apply flags',
+                placeholder='Select a taxa to apply flags',)
+            
+            if flag_taxa != '---':
+                    
+                SFLAG_options = [s for s in SPECIES_FLAGS['SFLAG']]
+                SFLAG = st.selectbox(
+                    label = 'SFLAG(s)', 
+                    options=['---'] + SFLAG_options if SFLAG_options is not None  and len(SFLAG_options)>0 else [],
+                    help='Select the **taxon flags** present in the selected taxa',)
+                
+                SFLAG_string = f'SFLAG {SFLAG}' if SFLAG != '---' else ''
+                
+                if SFLAG != '---':
+                    st.info(SPECIES_FLAGS['SFLAG'][SFLAG])
+                
+                STRID_options = sorted([s for s in STRATUM_ID['CODE']])
+                STRID = st.selectbox(
+                    label = 'STRID - Stratum ID', 
+                    options=['---'] + STRID_options if STRID_options is not None  and len(STRID_options)>0 else [],
+                    help='Select the **taxon rid** present in the selected taxa',)
+
+                if STRID != '---':
+                    st.info(STRATUM_ID['CODE'][STRID])
+            # ------------------
+
+                STRID_string = STRID if STRID != '---' else ''
+
+                flag_taxa_string = f'{flag_taxa} {SFLAG_string} {STRID_string}'
+                flagged_taxa = flag_taxa_string.strip()
+                
+                if STRID != '---' or SFLAG != '---':
+                    keep_only_flagged_taxa = st.checkbox(
+                        label=f'**keep only :blue[{flagged_taxa}]** and remove **:red[{flag_taxa}]**', 
+                        value=True, 
+                        help=f'If enabled, ***{flag_taxa}*** will removed from the taxons and only **{flagged_taxa}** will be kept.')
+                    if not keep_only_flagged_taxa:
+                        taxa_to_flag.append(flagged_taxa)                            
+                    else:
+                        taxa_to_flag.remove(flag_taxa)
+                        taxa_to_flag.append(flagged_taxa)
+    return taxa_to_flag
+
+
+def get_unique_values(df: pd.DataFrame)->list:
+    """
+    Retrieves all the unique values in all the columns and rows of a Pandas DataFrame.
+
+    Args:
+    df: A Pandas DataFrame.
+
+    Returns:
+    A list of all the unique values in the DataFrame.
+    """
+
+    # Create a list to store all the unique values.
+    unique_values = set()
+
+    # Iterate over all the columns in the DataFrame.
+    for column in df.columns:
+        # Get the unique values in the column.
+        unique_column_values = df[column].unique()
+
+        # Add the unique column values to the list of all the unique values.
+        unique_values.update(unique_column_values)
+
+    # Return the list of all the unique values.
+    result = [val for val in unique_values if unique_values is not None and val is not None]
+    if len(result)> 0:
+        return result
+    else:
+        return []
+    
+
 
 try:
     DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
@@ -1035,18 +1090,24 @@ try:
                 'dotpoint_type': 'taxons',
                 }
             
-            edited_df_taxons = data_editor_with_selectbox_10_columns(
+            edited_df_taxons = seafloor_interpretation_data_editor(
                 data_config_dict=data_config_dict_taxon,
                 colnames=range(1,11))
+            
+            if edited_df_taxons is not None and len(edited_df_taxons)>0:
+                taxa_to_flag = taxons_selector(taxa_to_flag=get_unique_values(edited_df_taxons), SPECIES_FLAGS=SPECIES_FLAGS, STRATUM_ID=STRATUM_ID)
 
             data_config_dict_substrates = {
                 'options': [s[0] for s in substrates],
                 'dotpoint_type': 'Substrates',
                 }
 
-            edited_df_substrates = data_editor_with_selectbox_10_columns(
+            edited_df_substrates = seafloor_interpretation_data_editor(
                 data_config_dict=data_config_dict_substrates,
-                colnames=range(1,11))
+                colnames=range(1,11),
+                num_rows='fixed',
+                )
+            
             
                 
             """"
