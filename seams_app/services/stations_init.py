@@ -117,8 +117,8 @@ def create_videos_dataframe():
     VIDEO_CORE_COLUMNS_DTYPES = load_yaml(os.path.join(CONFIG_DIRPATH, DTYPES['VIDEO_CORE_COLUMNS_DTYPES']))
     dtype_mapping = colnames_dtype_mapping(VIDEO_CORE_COLUMNS_DTYPES)
     df = pd.DataFrame(columns=dtype_mapping.keys(), ).astype(dtype_mapping)
-    if 'SELECTED' not in df.columns:
-        df['SELECTED'] = False
+    if "IN_VIDEOS_DIRPATH" not in df.columns:
+        df["IN_VIDEOS_DIRPATH"] = False
     return df
 
 
@@ -271,6 +271,7 @@ def create_data_editor(df:pd.DataFrame, key:str):
         key=key, 
         hide_index=True, 
         use_container_width=True,
+        disabled=["IN_VIDEOS_DIRPATH"], 
         )
     if data_editor is not None:
         return data_editor
@@ -424,7 +425,7 @@ def build_header():
 
 
 
-def flatten_and_create_dataframe(input_dict, columns = ["siteName", "fileName", "SELECTED"]):
+def flatten_and_create_dataframe(input_dict, VIDEOS_DIRPATH:str, columns = ["siteName", "fileName", "IN_VIDEOS_DIRPATH"], VIDEOS_FILE_EXTENSION:str = '.mp4' ):
     """
     Flatten a nested dictionary into a list and then convert it into a pandas DataFrame.
 
@@ -460,10 +461,20 @@ def flatten_and_create_dataframe(input_dict, columns = ["siteName", "fileName", 
     - This function is useful when there's a need to work with flattened structures, especially in data analysis or visualization tasks.
     """
     flattened_data = []
+    LOCAL_VIDEOS = get_files_dictionary(
+        VIDEOS_DIRPATH, 
+        file_extension=VIDEOS_FILE_EXTENSION,
+        keep_extension_in_key=True)
+
     for site_name, files_info in input_dict.items():
         for file_name, selected_value in files_info.items():
-            selected = selected_value if selected_value is not None else False
-            flattened_data.append((site_name, file_name, selected))
+            if file_name in LOCAL_VIDEOS:
+                is_in_videos_dirpath = True
+            else:
+                is_in_videos_dirpath = False
+
+            #selected = selected_value if selected_value is not None else False
+            flattened_data.append((site_name, file_name, is_in_videos_dirpath))
     
     df = pd.DataFrame(flattened_data, columns=columns)
     return df
@@ -703,7 +714,12 @@ def show_random_frames(
                         RANDOM_FRAMES = {k: {
                             'FILEPATH': AVAILABLE_FRAMES[k],
                             'INTERPRETATION': {
-                                'DOTPOINTS': {}, 
+                                'DOTPOINTS': { str(i): {
+                                    "DOTPOINT_ID": None,
+                                    "TAXONS": {},
+                                    "SUBSTRATE": {},
+
+                                    }  for i in range(1, 11)}, 
                                 'STATUS': "NOT_STARTED"
                             }, 
                             } for k in RANDOM_FRAMES_IDS}
@@ -724,7 +740,7 @@ def show_random_frames(
                             is_ready_for_interpretation = True
                             STATION_DATA['BENTHOS_INTERPRETATION']['IS_READY'] = is_ready_for_interpretation
                             st.session_state['CURRENT']['IS_READY'] = is_ready_for_interpretation
-                            
+
                             with st.spinner():
                                 update_station_data(
                                     STATION_DATA=STATION_DATA,
@@ -954,7 +970,7 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILE
         
         # --------------------
         if _VIDEOS is not None and len(_VIDEOS)>0:
-            _videos_df = flatten_and_create_dataframe(_VIDEOS, columns = ["siteName", "fileName", "SELECTED"])
+            _videos_df = flatten_and_create_dataframe(_VIDEOS, columns = ["siteName", "fileName", "IN_VIDEOS_DIRPATH"], VIDEOS_DIRPATH=SURVEY_DATA['SURVEY']['VIDEOS_DIRPATH'])
         else:
             _videos_df = None
         # --------------------
@@ -968,6 +984,8 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILE
         else:
             videos_df = build_survey_videos(SURVEY_NAME=SURVEY_NAME)
 
+        # Checking if the videos are in the VIDEO_DIRPATH
+        
         videos_data_editor_dict = create_data_editor(videos_df, key=f'videos_editor')
         VIDEOS = get_videos_per_station(videos_data_editor_dict)
 
@@ -995,22 +1013,16 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILE
 
             if STATIONS_WITHOUT_VIDEOS is not None and  len(STATIONS_WITHOUT_VIDEOS)>0:
                 st.warning(f'**Stations without videos:** {STATIONS_WITHOUT_VIDEOS}')
-
         
         # --------------------
-
-        #if 'stations_editor' in st.session_state:
-        #    has_edited_rows = len(st.session_state['stations_editor']['edited_rows'])            
-        #    has_deleted_rows = len(st.session_state['stations_editor']['deleted_rows'])
-
         
         save_stations_btn = st.button('save survey data & continue', key=f'save_survey_data')
         
         #IS_SURVEY_DATA_AVAILABLE = False        
         if save_stations_btn:
-            if len(VIDEO_STATIONS) >0:
+            if VIDEO_STATIONS is not None and len(VIDEO_STATIONS) >0:
                 with st.spinner('Saving stations data...'):
-                    STATIONS_FILEPATHS =  save_stations(STATIONS=VIDEO_STATIONS, VIDEOS=VIDEOS, SURVEY_DIRPATH=SURVEY_DATA['SURVEY']['SURVEY_DIRPATH'])
+                    STATIONS_FILEPATHS =  save_stations(STATIONS=VIDEO_STATIONS, VIDEOS=VIDEOS, SURVEY_DIRPATH=SURVEY_DATA.get('SURVEY', {}).get('SURVEY_DIRPATH', None))
                     SURVEY_DATA['STATIONS_FILEPATHS'] = STATIONS_FILEPATHS
                     # SURVEY_DATASTORE.store_data({'APP': SURVEY_DATA})
                     update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])   
@@ -1464,7 +1476,7 @@ def main_menu():
                     
             # ---
             EXPECTED_VIDEOS = STATION_DATA.get('VIDEOS', {})
-            RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {})
+           
             AVAILABLE_VIDEOS = {v: LOCAL_VIDEOS[v] for v in EXPECTED_VIDEOS if v in LOCAL_VIDEOS}
             # ---
             if len(AVAILABLE_VIDEOS)>0:
