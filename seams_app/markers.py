@@ -6,6 +6,7 @@ import random
 from dataclasses import dataclass, field
 from itertools import count
 from typing import List
+from streamlit import cache_data
 
 
 

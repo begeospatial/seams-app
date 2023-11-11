@@ -488,7 +488,9 @@ def get_tab_suffix_icon(status):
 
 st.cache_data()
 def extended_taxons_list()->list:
-    extended_list = sorted(list(list(phytobenthosCommonTaxa.keys()) + list(OTHER_BENTHOS_COVER_OR_BIOTURBATION) + list(USER_DEFINED_TAXONS)))
+    
+    extended_list = sorted(list(phytobenthosCommonTaxa.keys()) + list(OTHER_BENTHOS_COVER_OR_BIOTURBATION) + list(USER_DEFINED_TAXONS))    
+    
     return extended_list
 
 
@@ -841,8 +843,8 @@ def substrates_interpretation(substrates:dict)->dict:
 
 def seafloor_interpretation_data_editor(
         data_config_dict:dict, 
-        colnames: list=range(1,11), 
-        df: pd.DataFrame= None,  
+        colnames: list=range(1,11),         
+        df:pd.DataFrame = None,  
         num_rows='dynamic', 
         width='small'):
     """
@@ -856,19 +858,21 @@ def seafloor_interpretation_data_editor(
     """
     options = data_config_dict['options']
     # Create a Pandas DataFrame with a single row and 10 columns, named 1 to 10.
-    df = pd.DataFrame({str(i): [None] for i in colnames})
+    if df is None:
+        df = pd.DataFrame({str(i): [None] for i in colnames})
+    
     dotpoint_type = data_config_dict['dotpoint_type']
 
-    st.expander(label=f'**{str(dotpoint_type).upper()}**', expanded=True,)
+    
     st.markdown(
         f'DotPoints **{str(dotpoint_type).upper()}**', 
-        help=f'Select the **{str(dotpoint_type).upper()}** present for the selected `dotpoints` in the frame. Double click to show the options',
+        help=f'Select the **{str(dotpoint_type).upper()}** present for the selected `dotpoints` in the frame. Double click in the cell to select {str(dotpoint_type).upper()}',
     )
     
     # Create a Streamlit data editor widget for the DataFrame.
     edited_df = st.data_editor(
         df,
-        hide_index=False,
+        hide_index=True,
         num_rows=num_rows,
         use_container_width=True,
         column_config={
@@ -877,30 +881,59 @@ def seafloor_interpretation_data_editor(
                 options=options,
                 width=width,
                 required=True,
+                default=None,
                 )
                 for i in colnames},
 
         key=f'data_editor_{dotpoint_type}',
         
         )
-
     # Return the user's selections.
     return edited_df
 
 
-def taxons_selector(taxa_to_flag: list, SPECIES_FLAGS:dict=SPECIES_FLAGS, STRATUM_ID:dict=STRATUM_ID)->list:
+def search_value_in_dataframe(df:pd.DataFrame, target:str)->dict:
+    """
+    Search for a target value in a Pandas DataFrame and retrieve a dictionary
+    of the row and column indices where the value was found.
+
+    Parameters:
+    - df (pandas.DataFrame): The DataFrame to search.
+    - target (str): The target value to search for.
+
+    Returns:
+    - dict: A dictionary containing (index, column) tuples as keys and
+      corresponding cell values as values.
+    """
+
+    result = {}
+    for index, row in df.iterrows():
+        for column, value in row.iteritems():
+            if value == target:
+                result[(index, column)] = value
+    return result
+
+
+def taxons_selector(taxa_to_flag: list, SPECIES_FLAGS:dict=SPECIES_FLAGS, STRATUM_ID:dict=STRATUM_ID)->str:
 
     # ----------------           
-    with st.expander(label='**Taxa to Species flags**', expanded=False):
-        if len(taxa_to_flag) > 0:
+
+    if len(taxa_to_flag) > 0:
+        tscol1, tscol2, tscol3, tscol4, tscol5 = st.columns([1,1,1,2,1])
+        
+        with tscol1:
+                
             flag_taxa = st.selectbox(
                 label = 'Taxa to flag', 
                 options=['---'] + taxa_to_flag if taxa_to_flag is not None  and len(taxa_to_flag)>0 else [],
                 index=0,
                 help='Select **taxa** to apply flags',
                 placeholder='Select a taxa to apply flags',)
-            
+        
+        with tscol2:
+
             if flag_taxa != '---':
+                flagged_taxa = flag_taxa
                     
                 SFLAG_options = [s for s in SPECIES_FLAGS['SFLAG']]
                 SFLAG = st.selectbox(
@@ -909,38 +942,40 @@ def taxons_selector(taxa_to_flag: list, SPECIES_FLAGS:dict=SPECIES_FLAGS, STRATU
                     help='Select the **taxon flags** present in the selected taxa',)
                 
                 SFLAG_string = f'SFLAG {SFLAG}' if SFLAG != '---' else ''
-                
                 if SFLAG != '---':
                     st.info(SPECIES_FLAGS['SFLAG'][SFLAG])
+            
+                with tscol3:
+                    
+                    
+                    STRID_options = sorted([s for s in STRATUM_ID['CODE']])
+                    STRID = st.selectbox(
+                        label = 'STRID - Stratum ID', 
+                        options=['---'] + STRID_options if STRID_options is not None  and len(STRID_options)>0 else [],
+                        help='Select the **taxon rid** present in the selected taxa',)
+
+                    if STRID != '---':
+                        st.info(STRATUM_ID['CODE'][STRID])
+                # ------------------
+
+                    STRID_string = STRID if STRID != '---' else ''
+
+                    flag_taxa_string = f'{flag_taxa} {SFLAG_string} {STRID_string}'
+                    flagged_taxa = flag_taxa_string.strip()
+                    
+                with tscol4:
+
+                    if STRID != '---' or SFLAG != '---':
+                        
+                        confirm_taxa_to_flag = st.button(label=f'ADD: **{flagged_taxa}**', help=f'Confirm the **taxa** to add to the available taxa list')
+                        if confirm_taxa_to_flag:
+                            taxa_to_flag.remove(flag_taxa)
+                            taxa_to_flag.append(flagged_taxa)
                 
-                STRID_options = sorted([s for s in STRATUM_ID['CODE']])
-                STRID = st.selectbox(
-                    label = 'STRID - Stratum ID', 
-                    options=['---'] + STRID_options if STRID_options is not None  and len(STRID_options)>0 else [],
-                    help='Select the **taxon rid** present in the selected taxa',)
-
-                if STRID != '---':
-                    st.info(STRATUM_ID['CODE'][STRID])
-            # ------------------
-
-                STRID_string = STRID if STRID != '---' else ''
-
-                flag_taxa_string = f'{flag_taxa} {SFLAG_string} {STRID_string}'
-                flagged_taxa = flag_taxa_string.strip()
-                
-                if STRID != '---' or SFLAG != '---':
-                    keep_only_flagged_taxa = st.checkbox(
-                        label=f'**keep only :blue[{flagged_taxa}]** and remove **:red[{flag_taxa}]**', 
-                        value=True, 
-                        help=f'If enabled, ***{flag_taxa}*** will removed from the taxons and only **{flagged_taxa}** will be kept.')
-                    if not keep_only_flagged_taxa:
-                        taxa_to_flag.append(flagged_taxa)                            
-                    else:
-                        taxa_to_flag.remove(flag_taxa)
-                        taxa_to_flag.append(flagged_taxa)
-    return taxa_to_flag
-
-
+                            if flag_taxa != flagged_taxa:                                
+                                return flagged_taxa
+                                
+                    
 def get_unique_values(df: pd.DataFrame)->list:
     """
     Retrieves all the unique values in all the columns and rows of a Pandas DataFrame.
@@ -970,10 +1005,27 @@ def get_unique_values(df: pd.DataFrame)->list:
     else:
         return []
     
+st.cache_data()    
+def show_modified_image(image, centroids_dict:dict):
+    show_dotpoints_overlay = st.checkbox(
+        label='Show dotpoints overlay',
+        value=True,
+        help='Show the dotpoints overlay on the image',
+        key='show_dotpoints_overlay',
+        )
+    if show_dotpoints_overlay:
+        modified_image = floating_marker(image, centroids_dict=centroids_dict)
+    else:
+        modified_image = image
 
+    st.image(
+        modified_image,
+        use_column_width='always',        
+        )
 
 try:
     DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
+    current_flagged_taxons = st.session_state.get('APP', {}).get('current_flagged_taxons', [])
     
     CURRENT_FILENAME = 'seams_current_cache_data.yaml'
     CURRENT_FILEPATH = os.path.join(DATA_DIRPATH, CURRENT_FILENAME)        
@@ -999,6 +1051,10 @@ try:
 
         if 'DOTPOINTS_SUBSTRATES_DONE' not in st.session_state['CURRENT']:
             st.session_state['CURRENT']['DOTPOINTS_SUBSTRATES_DONE'] = {}
+
+        if 'df_taxons' not in st.session_state['CURRENT']:
+            st.session_state['CURRENT']['df_taxons'] = None
+
 
         build_header()
         suffix = st.session_state.get('suffix', '***')
@@ -1078,35 +1134,74 @@ try:
             centroids_dict = { i+1: centroid for i, centroid in enumerate(centroids) }
             grid = generate_toggle_buttons_grid(n_rows=n_rows)
 
-            icol1, _, icol3 = st.columns([15,1,3])                
-            with icol1:
-                modified_image = floating_marker(image, centroids_dict=centroids_dict)
-                st.image(modified_image)
 
-            # Visualize the data editor widget.
-            #edited_df_taxons = data_editor_taxon_with_multiselect(taxons=extended_taxons_list())
-            data_config_dict_taxon = {
-                'options': extended_taxons_list(),
-                'dotpoint_type': 'taxons',
-                }
-            
-            edited_df_taxons = seafloor_interpretation_data_editor(
-                data_config_dict=data_config_dict_taxon,
-                colnames=range(1,11))
-            
-            if edited_df_taxons is not None and len(edited_df_taxons)>0:
-                taxa_to_flag = taxons_selector(taxa_to_flag=get_unique_values(edited_df_taxons), SPECIES_FLAGS=SPECIES_FLAGS, STRATUM_ID=STRATUM_ID)
+            show_modified_image(image, centroids_dict=centroids_dict)
 
-            data_config_dict_substrates = {
-                'options': [s[0] for s in substrates],
-                'dotpoint_type': 'Substrates',
-                }
+            tabFrameInterpretation, tabResults = st.tabs(['**Frame interpretation**', '**Results**'])
+            with tabFrameInterpretation:
 
-            edited_df_substrates = seafloor_interpretation_data_editor(
-                data_config_dict=data_config_dict_substrates,
-                colnames=range(1,11),
-                num_rows='fixed',
-                )
+                with st.expander(label='**Substrates**', expanded=True):
+                        
+                    data_config_dict_substrates = {
+                        'options': [s[0] for s in substrates],
+                        'dotpoint_type': 'Substrates',
+                        }
+
+                    edited_df_substrates = seafloor_interpretation_data_editor(
+
+                        data_config_dict=data_config_dict_substrates,
+                        colnames=range(1,11),
+                        num_rows='fixed',
+                        )
+
+
+                with st.expander(label='**Taxons**', expanded=True):
+                    # Visualize the data editor widget.
+                    #edited_df_taxons = data_editor_taxon_with_multiselect(taxons=extended_taxons_list())
+                    if current_flagged_taxons is not None and len(current_flagged_taxons) > 0:
+                        data_config_dict_taxon = {
+                            'options': current_flagged_taxons + extended_taxons_list(),
+                            'dotpoint_type': 'taxons',
+                            }
+                    else:
+                        data_config_dict_taxon = {
+                            'options': extended_taxons_list(),
+                            'dotpoint_type': 'taxons',
+                            }
+                        
+                    
+                    edited_df_taxons = seafloor_interpretation_data_editor(
+                        df=st.session_state['CURRENT']['df_taxons'],
+                        data_config_dict=data_config_dict_taxon,                        
+                        colnames=range(1,11))
+                    
+                                    
+                    if edited_df_taxons is not None and len(edited_df_taxons)>0:
+                        st.session_state['CURRENT']['df_taxons'] = edited_df_taxons
+
+                        show_SMHI_SFLAGS_STRID = st.checkbox(
+                            label='Show SMHI SFLAGS and STRID',
+                            value=False,
+                            help='Adds SMHI-based species flags (SFLAGS) and Stratum ID (STRID) for the selected taxa',
+                        )
+                        if show_SMHI_SFLAGS_STRID:
+                            flagged_taxa = taxons_selector(taxa_to_flag=get_unique_values(edited_df_taxons), SPECIES_FLAGS=SPECIES_FLAGS, STRATUM_ID=STRATUM_ID)
+                            
+                            if flagged_taxa is not None:                                
+                                
+
+                                if current_flagged_taxons is not None and len(current_flagged_taxons) > 0:
+                                    current_flagged_taxons.append(flagged_taxa)                                
+                                    st.session_state['APP']['current_flagged_taxons'] = list(set(current_flagged_taxons)).sort()
+
+                                    st.toast(f'**{flagged_taxa}** added to the list of taxons.')
+                                    
+
+            st.write(st.session_state.get('data_editor_taxons', {}))
+
+            with tabResults:
+                # --------------------
+                st.write(st.session_state['CURRENT'])
             
             
                 
