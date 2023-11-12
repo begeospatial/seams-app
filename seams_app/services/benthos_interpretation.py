@@ -1066,6 +1066,8 @@ try:
                 with st.expander(label='**Taxons**', expanded=True):
                     # Visualize the data editor widget.
                     
+                    edited_df_taxa = st.empty()
+                    
                     tcol1, tcol2, tcol3, tcol4, tcol5 = st.columns([1,1,1,1,1])
 
                     with tcol1:                            
@@ -1126,7 +1128,7 @@ try:
                     df_taxa=pd.DataFrame.from_dict(FRAME_TAXA, orient='index', columns=colnames)
                 
                     # Create a Streamlit data editor widget for the DataFrame.
-                    edited_df_taxa = st.data_editor(
+                    df_taxa_editor = edited_df_taxa.data_editor(
                         df_taxa,
                         hide_index=False,
                         num_rows='fixed',
@@ -1142,7 +1144,7 @@ try:
                         key=f'data_editor_taxa',                        
                         )                
                     
-                    taxa_results = translate_dictionary(edited_df_taxa.to_dict())
+                    taxa_results = translate_dictionary(df_taxa_editor.to_dict())
 
                     confirm_taxa = st.button(
                         label=f'ADD: **{_taxa_to_add}**', 
