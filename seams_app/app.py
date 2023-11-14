@@ -5,7 +5,7 @@ from bgsio import get_available_services, create_directory_list, check_directory
 from bgstools.stt import build_activities_menu
 from bgsio import load_toml_variables, create_subdirectory, create_new_directory
 from bgstools.datastorage import DataStore, YamlStorage
-from seams_utils import update_station_data, delete_file
+from seams_utils import update_station_data
 
 # --------------------
 st.set_page_config(

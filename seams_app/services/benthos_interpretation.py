@@ -809,6 +809,40 @@ def station_to_frame_substrates_dictionary(frame_name:str, STATION_DATA:str)->di
     return substrates_results
 
 
+def station_summary(STATION_DATA:dict, taxons:list = [], substrates:list = []):
+    pass
+
+def survey_summary(SURVEY_DATA:dict, taxons:list = [], substrates:list = []):
+    pass
+
+
+def create_table(STATION_DATA:dict):
+    # Get the list of substrates    
+    substrates = set()
+    # Get the list of taxons
+    taxons = set()
+
+    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+        for dotpoint in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].values():
+            substrates.add(dotpoint['SUBSTRATE'])
+            taxons.update(dotpoint['TAXONS'].keys())
+
+    # Create the table header
+    table_header = ['Dotpoint ID', 'Substrate'] + list(taxons).sort()
+
+    # Create the table rows
+    table_rows = []
+    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+        for dotpoint_id, dotpoint in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].items():
+            row = [dotpoint_id, dotpoint['SUBSTRATE']] + [dotpoint['TAXONS'].get(taxon, False) for taxon in taxons]
+            table_rows.append(row)
+
+    # Convert the table rows to a string
+    table_string = '\n'.join(['\t'.join(str(cell) for cell in row) for row in [table_header] + table_rows])
+
+    return table_string
+
+
 try:
     DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
     current_flagged_taxons = st.session_state.get('APP', {}).get('current_flagged_taxons', [])
@@ -1083,12 +1117,34 @@ try:
                     update_station_data(STATION_DATA=STATION_DATA, STATION_FILEPATH=STATION_FILEPATH)
 
             with tabResults:
-                trcol1, trcol2, trcol3, trcol4 = st.columns([1,1,1,1])
+                # create_table(STATION_DATA)
+                    # Get the list of substrates    
+                substrates_set = set()
+                # Get the list of taxons
+                taxons_set = set()
 
-                with trcol1:
-                    st.write(st.session_state['CURRENT'])
-                with trcol2:
-                    st.write(STATION_DATA)
+                for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+                    for dotpoint in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].values():
+                        substrates_set.add(dotpoint['SUBSTRATE'])
+                        taxons_set.update(dotpoint['TAXONS'].keys())
+
+                
+                # Create the table rows
+                table_rows = []
+                for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+                    for dotpoint_id, dotpoint in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].items():
+                        row = [dotpoint_id, dotpoint['SUBSTRATE']] + [dotpoint['TAXONS'].get(taxon, False) for taxon in taxons_set]
+                        table_rows.append(row)
+
+                rcol1, rcol2 = st.columns([1,1])
+                with rcol1:
+                    st.markdown(f'**Substrates**')
+                    st.write(substrates_set)
+                    st.write(table_rows)
+                with rcol2:
+                    st.markdown(f'**Taxons**')
+                    st.write(taxons_set)
+
 
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
