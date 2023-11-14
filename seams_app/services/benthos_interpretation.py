@@ -143,9 +143,7 @@ def station_results(STATION_DATA, taxons:list = [], substrates:list = []):
 
                 df.append(_df)
                 
-                                            
-        #df = pd.concat(df)
-        #df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
+
 
         is_station = df['STATION_NAME'] == STATION_NAME
 
@@ -194,113 +192,6 @@ def station_results(STATION_DATA, taxons:list = [], substrates:list = []):
                 st.info(f'File saved: {filename}')
                 st.balloons()
 
-
-
-def survey_results(SURVEY_DATA):
-
-    df = []
-    stations = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'].keys()
-    SURVEY_DIRPATH = SURVEY_DATA['APP']['SURVEY']['SURVEY_DIRPATH']
-
-    taxons = list(SURVEY_DATA['APP']["TAXONS"].keys())
-    substrates = list(SURVEY_DATA['APP']["SUBSTRATES"].keys())
-
-    summary = {}
-
-    if len(taxons) > 0:            
-        for STATION_NAME in stations:
-            FRAMES = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES']
-            for FRAME_NAME in FRAMES:
-                FRAME_INTERPRETATION = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
-
-                METADATA = FRAME_INTERPRETATION.get('METADATA', {})
-                if len(METADATA) > 0:            
-                    if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
-                        _FRAME_INTERPRETATION = FRAME_INTERPRETATION
-                        _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()
-                        _df = pd.DataFrame.from_dict(_FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
-                        _df['SURVEY_NAME'] = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['SURVEY_NAME']
-                        _df['STATION_NAME'] = STATION_NAME
-                        _df['VIDEO_NAME'] = SURVEY_DATA['APP']['BENTHOS_INTERPRETATION'][STATION_NAME]['VIDEO_NAME']
-                        _df['FRAME_NAME'] = FRAME_NAME
-                        for t in taxons:
-                            _df[t] = None
-                            summary[t] = 0                                                       
-                        for s in substrates:
-                            _df[s] = None
-                            summary[s] = 0
-
-                        for id in _IDs:
-                            is_id = _df['DOTPOINT_ID'] == id
-                            _subtrate = _df.loc[is_id, 'SUBSTRATE'].tolist()[0]
-                            _taxons = _df.loc[is_id, 'TAXONS'].tolist()[0]
-                            if isinstance(_taxons, dict):
-                                _taxons = list(_taxons.keys())
-                            if isinstance(_subtrate, dict):
-                                _subtrate = list(_subtrate.keys())[0]
-
-                            #st.write(_subtrate, _taxons)
-
-                            if _subtrate in substrates:
-                                _df.loc[is_id, _subtrate] = 1
-                                
-
-                            for t in _taxons:
-                                if t is not None:                                        
-                                    if t in taxons:
-                                        _df.loc[is_id, t] = 1
-                                        
-
-                        df.append(_df)
-                        
-                                            
-        df = pd.concat(df)
-        df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
-
-        is_station = df['STATION_NAME'] == STATION_NAME
-
-        for t in taxons:
-            summary[t] = df.loc[is_station, t].sum()
-        for s in substrates:
-            summary[s] = df.loc[is_station, s].sum()
-
-
-        column_config = {                                        
-           
-            'frame_x_coord': {'editable': False, 'rename': False},
-            'frame_y_coord': {'editable': False, 'rename': False},
-            'DOTPOINT_ID': {'editable': False, 'rename': False},                            
-            } 
-        
-        st.markdown(f'## Percent cover `{STATION_NAME}`')
-        st.dataframe(pd.DataFrame.from_dict(summary, orient='index').T, hide_index=True)
-        st.markdown('## Survey results')
-        data_editor = st.data_editor(
-            data=df,
-            #num_rows=10,
-            column_config= column_config,
-            key='data_editor_survey',
-            use_container_width=True, 
-            hide_index=True,
-            column_order=['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord']+ taxons + substrates,
-            disabled=True,
-            )
-        
-        st.divider()           
-
-        save_to_file = st.button(label='Save file `csv`', key=f'button_save_survey')
-        if save_to_file:
-            filename = os.path.join(SURVEY_DIRPATH, f'SEAMS_SURVEY_RESULTS_{SURVEY_NAME}.csv')
-            with st.spinner('Saving file...'):
-                   df.to_csv(
-                       os.path.join(filename),
-                        encoding='utf-8',
-                        index=False,
-                        )
-                
-            if os.path.exists(filename):
-                st.info(f'File saved: {filename}')
-                st.balloons()
 
 
 def frame_results(
@@ -379,12 +270,14 @@ def benthos_main_menu(
         
         FRAME_NAME = RANDOM_FRAMES_INDEX_DICT[FRAME_INDEX]        
         FRAME_FILEPATH = RANDOM_FRAMES[FRAME_NAME]['FILEPATH']
+        if 'FRAME_INDEX' not in st.session_state:
+            st.session_state['FRAME_INDEX'] = FRAME_INDEX
 
 
         result = {
             'FRAME_INDEX': FRAME_INDEX, 
             'FRAME_NAME': FRAME_NAME, 
-            'FRAME_FILEPATH': FRAME_FILEPATH,             
+            'FRAME_FILEPATH': FRAME_FILEPATH,         
             }
         
         
@@ -511,67 +404,6 @@ def flatten_list(input_list:list)->list:
     return flattened
 
 
-def show_tabs(        
-        SURVEY_FILEPATH:str = None,        
-        STATION_DATA:dict = {},
-        FRAME_NAME:str = None,            
-        ):
-    
-    SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
-
-    if STATION_DATA is not None:
-        SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data        
-        RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {})
-        TAXONS = list(SURVEY_DATA['APP']["TAXONS"].keys())
-        SUBSTRATES = list(SURVEY_DATA['APP']["SUBSTRATES"].keys())
-
-        
-        if RANDOM_FRAMES is None or len(RANDOM_FRAMES) == 0:
-            st.info('**No frames to display.**')
-            return
-        else: 
-            # Generating FRAME_NAMES
-            FRAME_NAMES = {i+1: k for i, k in enumerate(RANDOM_FRAMES.keys())}
-
-            # Adding 'RAW DATA' tab at the end
-            tabs = st.tabs(['**STATION RESULTS** |', '**RAW DATA** |'])
-
-            # Show RAW DATA
-            with tabs[-1]:
-                st.write(STATION_DATA) 
-
-            # Show SURVEY SUMMARY
-            with tabs[0]:
-                with st.expander(label='**STATION SUMMARY**', expanded=True):
-                    _status = [f"{i} | {k}" for i, k in FRAME_NAMES.items() if RANDOM_FRAMES[k]["INTERPRETATION"]["STATUS"] == "COMPLETED"]
-                    
-                    col1, col2 = st.columns([1,1])
-
-                    with col1:
-                        st.write(f'**FRAMES COMPLETED** : {len(_status)} / {len(FRAME_NAMES)}')
-
-                    with col2:
-                        if len(_status) > 0:
-                            st.multiselect(
-                                label='FRAMES COMPLETED', 
-                                options=_status,
-                                default=_status, 
-                                disabled=True,)
-                    
-                    frame_results(
-                            STATION_DATA=STATION_DATA,                            
-                            FRAME_NAME=FRAME_NAME,                            
-                            key=f'xframe_{FRAME_NAME}'
-                        )
-                #TODO: Show survey results
-                with st.expander(label='**SURVEY RESULTS**', expanded=True):
-                    station_results(STATION_DATA, taxons=TAXONS, substrates=SUBSTRATES)
-                    #survey_results(STATIONS_DIRPATH)
-
-                    
-    else:
-        st.info('**No frames to display.**')
-        return
 
 
 # --------------
@@ -628,10 +460,7 @@ def show_frame_select_menu(
     
     # --------------------    
     FRAME_FILEPATH = frame_selected_dict.get('FRAME_FILEPATH', None)
-    FRAME_NAME = frame_selected_dict.get('FRAME_NAME', None)
-    FRAME_INDEX = frame_selected_dict.get('FRAME_INDEX', None)
-
-
+    FRAME_NAME = frame_selected_dict.get('FRAME_NAME', None)    
     # Required to know if the frame has been dotpoints drawed before.
     if FRAME_NAME not in st.session_state:        
         st.session_state[FRAME_NAME] = 0
@@ -727,7 +556,7 @@ def substrates_interpretation(substrates:dict)->dict:
 
 
 
-def seafloor_interpretation_data_editor(
+def substrates_interpretation_data_editor(
         data_config_dict:dict, 
         colnames: list=range(1,11),         
         df:pd.DataFrame = None,  
@@ -891,6 +720,7 @@ def get_unique_values(df: pd.DataFrame)->list:
     else:
         return []
     
+    
 def translate_dictionary(input_dict):
     """
     Translate the given dictionary to a new format.
@@ -928,6 +758,53 @@ def show_modified_image(image, centroids_dict:dict, show_dotpoints_overlay:bool=
         modified_image,
         use_column_width='always',        
         )
+    
+
+def frame_to_station_taxons_dictionary(frame_name:str, STATION_DATA:str, taxons_results:dict)->dict:
+    OUTPUT_DOTPOINT = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+
+    for taxon, dotpoints in taxons_results.items():
+        for dotpoint, value in dotpoints.items():
+            OUTPUT_DOTPOINT[dotpoint]['DOTPOINT_ID'] = dotpoint
+            if value:
+                OUTPUT_DOTPOINT[dotpoint]['TAXONS'][taxon] = value            
+
+    return STATION_DATA
+
+def station_to_frame_taxons_dictionary(frame_name:str, STATION_DATA:str)->dict:
+    taxons_results = {}
+    dotpoints_data = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+    for dotpoint, dotpoint_data in dotpoints_data.items():
+        taxons_data = dotpoint_data.get('TAXONS', {})
+        for taxon, _ in taxons_data.items():
+            if taxon not in taxons_results:
+                taxons_results[taxon] = {}
+            taxons_results[taxon][dotpoint] = True
+    return taxons_results
+
+
+
+def frame_to_station_substrates_dictionary(frame_name:str, STATION_DATA:str, substrates_results:dict)->dict:
+    OUTPUT_DOTPOINT = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+
+    for _, dotpoints in substrates_results.items():
+        for dotpoint, substrate in dotpoints.items():
+            OUTPUT_DOTPOINT[dotpoint]['DOTPOINT_ID'] = dotpoint
+            if substrate is not None:
+                OUTPUT_DOTPOINT[dotpoint]['SUBSTRATE'] = substrate            
+
+    return STATION_DATA
+
+
+def station_to_frame_substrates_dictionary(frame_name:str, STATION_DATA:str)->dict:
+    substrates_results = {'0': {}}
+    dotpoints_data = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+    for dotpoint, dotpoint_data in dotpoints_data.items():
+        substrate = dotpoint_data.get('SUBSTRATE', None)
+        substrates_results['0'][dotpoint] = substrate
+        
+    return substrates_results
+
 
 try:
     DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
@@ -943,35 +820,30 @@ try:
         do_substrates = False
         dotpoint_type = 'taxon'
         dotpoints_selected_dict = {}
-    
-        
 
         CURRENT = load_yaml(CURRENT_FILEPATH)
         st.session_state['CURRENT'] = CURRENT
         st.session_state['CURRENT_FILEPATH'] = CURRENT_FILEPATH
-        if '_frame_dict' not in st.session_state['CURRENT']:
-            st.session_state['CURRENT']['_frame_dict'] = {}
 
-        if 'DOTPOINTS_TAXON_DONE' not in st.session_state['CURRENT']:
-            st.session_state['CURRENT']['DOTPOINTS_TAXON_DONE'] = {}
-
-        if 'DOTPOINTS_SUBSTRATES_DONE' not in st.session_state['CURRENT']:
-            st.session_state['CURRENT']['DOTPOINTS_SUBSTRATES_DONE'] = {}
-
-        if 'FRAME_TAXONS' not in st.session_state['CURRENT']:
-            st.session_state['CURRENT']['FRAME_TAXONS'] = {}
-        
         suffix = st.session_state.get('suffix', '***')
 
         # --------------------
+        SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None) 
         SURVEY_NAME = CURRENT.get('SURVEY_NAME', None)
         SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
         STATION_NAME = CURRENT.get('STATION_NAME', None)
         STATION_FILEPATH = CURRENT.get('STATION_FILEPATH', None)
-        STATION_DATA = CURRENT.get('STATION_DATA', {})
-        VIDEO_NAME = CURRENT.get('VIDEO_NAME', None)
-        SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)        
 
+        if STATION_FILEPATH is not None and os.path.exists(STATION_FILEPATH):
+            with st.spinner('Loading station data...'):
+                STATION_DATA = load_yaml(STATION_FILEPATH)                        
+        else:
+            STATION_DATA = {}
+
+        st.session_state['CURRENT']['STATION_DATA'] = STATION_DATA        
+        
+        VIDEO_NAME = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('VIDEO_NAME', None)
+        
         # --------------------------------------------------------------------    
         frame_info = build_header()
         
@@ -979,11 +851,6 @@ try:
         if STATION_DATA is not None and len(STATION_DATA) > 0:
             RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION').get('RANDOM_FRAMES', {})
 
-            with st.spinner('Loading survey data...'):
-                SURVEY_DATASTORE = load_datastore(survey_filepath=SURVEY_FILEPATH)
-                SURVEY_DATA = SURVEY_DATASTORE.storage_strategy.data.get('APP', {})
-
-            
             if VIDEO_NAME is None:
                 st.warning('Station with incompatible video selected or survey not initialized properly. Ensure the selected station and available video has the suffix **(***)**. Go to **Menu>Survey initialization** to initialize the survey.')
                 st.stop()            
@@ -1004,6 +871,16 @@ try:
             FRAME_NAME = frame_selected_dict.get('FRAME_NAME', None)
             FRAME_INDEX = frame_selected_dict.get('FRAME_INDEX', None)
             frame_info.info(f'**Frame** :blue[{FRAME_INDEX} | {FRAME_NAME}]')
+
+            FRAME_TAXONS =  station_to_frame_taxons_dictionary(
+                frame_name=FRAME_NAME, 
+                STATION_DATA=STATION_DATA)
+            
+                        
+            FRAME_SUBSTRATES = station_to_frame_substrates_dictionary(
+                frame_name=FRAME_NAME, 
+                STATION_DATA=STATION_DATA)
+            
                
             # create bounding box polygon
             bbox = create_bounding_box(image=image)
@@ -1041,29 +918,50 @@ try:
                 show_dotpoints_overlay=show_dotpoints_overlay)
             # --------------------------------------------------------------------
 
+            tabFrameSubstratesInterpretation, tabFrameTaxaInterpretation,  tabResults = st.tabs(['**Substrates**', '**Taxons**', '**Results**'])
 
-            tabFrameInterpretation, tabResults = st.tabs(['**Frame interpretation**', '**Results**'])
+            with tabFrameSubstratesInterpretation:
 
-            with tabFrameInterpretation:
-
-                with st.expander(label='**Substrates**', expanded=True):
+                with st.expander(label='**Substrates Interpretation**', expanded=True):
                         
                     data_config_dict_substrates = {
                         'options': [s[0] for s in substrates],
                         'dotpoint_type': 'Substrates',
                         }
+                    # ------------------
+                    
+                    with st.form(key='substrates_form'):
 
-                    edited_df_substrates = seafloor_interpretation_data_editor(
-                        data_config_dict=data_config_dict_substrates,
-                        colnames=colnames,
-                        num_rows='fixed',
-                        )
-                    subtrate_results = translate_dictionary(edited_df_substrates.to_dict())
+                        df_substrates = pd.DataFrame.from_dict(FRAME_SUBSTRATES, orient='index', columns=colnames)
 
-                    st.session_state['CURRENT']['FRAME_SUBSTRATES'] = subtrate_results
+                        edited_df_substrates = substrates_interpretation_data_editor(
+                            df=df_substrates,
+                            data_config_dict=data_config_dict_substrates,
+                            colnames=colnames,
+                            num_rows='fixed',
+                            )
+                        # ------------------
+                        
+                        substrates_results = translate_dictionary(edited_df_substrates.to_dict())
+
+                        confirm_substrates = st.form_submit_button(label='Confirm substrates')
+
+                    # = substrates_results
+                    #with st.spinner('Updating Frame Substrates...'):
+                    #    update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
+                    if confirm_substrates:
+
+                        with st.spinner('Updating substrates station data...'):
+                            STATION_DATA = frame_to_station_substrates_dictionary(
+                            frame_name=FRAME_NAME, STATION_DATA=STATION_DATA, substrates_results=substrates_results)
+                        
+                            update_station_data(STATION_DATA=STATION_DATA, STATION_FILEPATH=STATION_FILEPATH)
+                        st.rerun()
                     
 
-                with st.expander(label='**Taxons**', expanded=True):
+            with tabFrameTaxaInterpretation:
+
+                with st.expander(label='**Taxons Interpretation**', expanded=True):
                     # Visualize the data editor widget.
                     
                     edited_df_taxa = st.empty()
@@ -1078,9 +976,7 @@ try:
                             placeholder='Select taxa',
                             key='taxa_selectbox',
                             index=None,
-                            )
-                        
-                        
+                            )                    
                         
                     with tcol2:
                         show_SMHI_SFLAGS_STRID = st.checkbox(
@@ -1119,7 +1015,7 @@ try:
                                 _taxa_to_add = flag_taxa_string.strip()
                     # --------------
                         
-                    if _taxa_to_add is not None and len(_taxa_to_add)>0 and _taxa_to_add:
+                    if _taxa_to_add is not None and len(_taxa_to_add) > 0:
                         FRAME_TAXA = {_taxa_to_add: {i : False for i in colnames}}
                     else:
                         FRAME_TAXA = {}
@@ -1152,10 +1048,9 @@ try:
                         disabled=True if _taxa_to_add is None or len(_taxa_to_add) == 0 else False,)
                     
                     if confirm_taxa:
-                        st.session_state['CURRENT']['FRAME_TAXONS'].update(taxa_results)
-
-                    
-                    df_taxons=pd.DataFrame.from_dict(st.session_state['CURRENT']['FRAME_TAXONS'], orient='index', columns=colnames)
+                        FRAME_TAXONS.update(taxa_results)
+                                            
+                    df_taxons=pd.DataFrame.from_dict(FRAME_TAXONS, orient='index', columns=colnames)
                     
                     frame_taxons_df = st.data_editor(
                         df_taxons,
@@ -1174,99 +1069,24 @@ try:
                         )
                                         
                     taxons_results = translate_dictionary(frame_taxons_df.to_dict())
-                    st.session_state['CURRENT']['FRAME_TAXONS'].update(taxons_results)
-                    update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
-
-                        
+                    FRAME_TAXONS.update(taxons_results)
+                    #with st.spinner('Updating Frame Taxons...'):
+                    #    update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
+                    
+                    with st.spinner('Updating station data...'):
+                        STATION_DATA = frame_to_station_taxons_dictionary(
+                        frame_name=FRAME_NAME, STATION_DATA=STATION_DATA, taxons_results=taxons_results)
+                    
+                    update_station_data(STATION_DATA=STATION_DATA, STATION_FILEPATH=STATION_FILEPATH)
 
             with tabResults:
-                # --------------------
-                st.write(st.session_state['CURRENT'])
-            
-            
-                
-            """"
+                trcol1, trcol2, trcol3, trcol4 = st.columns([1,1,1,1])
 
-            with icol3:
-                dotpoints_indexes = flatten_list(grid)
-                if 'disable_extra_dotpoints_list' not in st.session_state['CURRENT']:
-                    randomly_selected_dotpoints_list = random.sample(dotpoints_indexes, 10)
-                    disable_extra_dotpoints_list = [i for i in dotpoints_indexes if i not in randomly_selected_dotpoints_list]
-                    st.session_state['CURRENT']['disable_extra_dotpoints_list'] = disable_extra_dotpoints_list
-                else:
-                    disable_extra_dotpoints_list = st.session_state['CURRENT']['disable_extra_dotpoints_list']
+                with trcol1:
+                    st.write(st.session_state['CURRENT'])
+                with trcol2:
+                    st.write(STATION_DATA)
 
-                # ------------------
-                taxsub1, taxsub2 = st.columns([1,2])
-                with taxsub1:
-                    st.markdown('**Taxons**')
-                with taxsub2:
-                    do_substrates = st.toggle(label='**Substrates**', key='do_substrates', value=False)
-                
-                reenable_dotpoints_taxon = False
-                if not reenable_dotpoints_taxon:
-                    DOTPOINTS_TAXON_DONE = [str(d) for d in st.session_state['CURRENT']['DOTPOINTS_TAXON_DONE'].keys()]
-                else:
-                    DOTPOINTS_TAXON_DONE = []
-
-                reenable_dotpoints_substrate = False
-                if not reenable_dotpoints_substrate:
-                    DOTPOINTS_SUBSTRATES_DONE = [str(d) for d in st.session_state['CURRENT']['DOTPOINTS_SUBSTRATES_DONE'].keys()]
-                else:
-                    DOTPOINTS_SUBSTRATES_DONE = []  
-
-                
-                # ------------------
-                if do_substrates is False:
-                    dotpoint_type = 'taxon'
-                    disable_dotpoints = disable_extra_dotpoints_list + DOTPOINTS_TAXON_DONE                
-                else:
-                    dotpoint_type = 'substrate'
-                    disable_dotpoints = disable_extra_dotpoints_list + DOTPOINTS_SUBSTRATES_DONE
-                # ------------------
-                dotpoints_selected_dict[dotpoint_type] = display_grid(
-                        grid=grid, disable_dotpoints=disable_dotpoints, dotpoint_type=dotpoint_type)
-                
-                if dotpoint_type == 'taxon':
-                    st.session_state['CURRENT']['_frame_dict'][dotpoint_type] = taxons_interpretation(SPECIES_FLAGS=SPECIES_FLAGS, STRATUM_ID=STRATUM_ID)
-                elif dotpoint_type == 'substrate':
-                    st.session_state['CURRENT']['_frame_dict'][dotpoint_type] = substrates_interpretation(substrates=substrates)
-
-            # --------------------
-            st.write(st.session_state['CURRENT'].get('_frame_dict', {}))
-
-            # HERE FRAME INTERPRETATION
-            for dotpoint_selected in dotpoints_selected_dict[dotpoint_type]:
-                if dotpoint_type not in st.session_state['CURRENT']:
-                    st.session_state['CURRENT'][dotpoint_type] = {}
-                else:
-                    st.session_state['CURRENT'][dotpoint_type].update({dotpoint_selected: st.session_state['CURRENT']['_frame_dict'][dotpoint_type]})
-            
-            st.write(st.session_state['CURRENT'][dotpoint_type])
-            
-
-            # --------------------
-
-            if 'FRAME_NAME' in st.session_state:
-                FRAME_NAME = st.session_state['FRAME_NAME']
-                st.session_state['CURRENT']['FRAME_NAME'] = FRAME_NAME
-                update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH'])
-            else:
-                FRAME_NAME = None
-            """
-
-            
-
-            #df = dict_to_dataframe(FRAME_INTERPRETATION['DOTPOINTS'])
-            #if RANDOM_FRAMES is not None and len(RANDOM_FRAMES) > 0:
-            #    df = dict_to_dataframe(RANDOM_FRAMES)
-            #st.write(df)
-
-            #show_tabs(                          
-            #    SURVEY_FILEPATH=SURVEY_FILEPATH,                
-            #    STATION_DATA=STATION_DATA,
-            #    FRAME_NAME=FRAME_NAME,       
-            #)
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
             
