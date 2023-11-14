@@ -767,7 +767,10 @@ def frame_to_station_taxons_dictionary(frame_name:str, STATION_DATA:str, taxons_
         for dotpoint, value in dotpoints.items():
             OUTPUT_DOTPOINT[dotpoint]['DOTPOINT_ID'] = dotpoint
             if value:
-                OUTPUT_DOTPOINT[dotpoint]['TAXONS'][taxon] = value            
+                OUTPUT_DOTPOINT[dotpoint]['TAXONS'][taxon] = True
+            else:
+                OUTPUT_DOTPOINT[dotpoint]['TAXONS'][taxon] = False
+
 
     return STATION_DATA
 
@@ -776,10 +779,10 @@ def station_to_frame_taxons_dictionary(frame_name:str, STATION_DATA:str)->dict:
     dotpoints_data = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
     for dotpoint, dotpoint_data in dotpoints_data.items():
         taxons_data = dotpoint_data.get('TAXONS', {})
-        for taxon, _ in taxons_data.items():
+        for taxon, value in taxons_data.items():
             if taxon not in taxons_results:
                 taxons_results[taxon] = {}
-            taxons_results[taxon][dotpoint] = True
+            taxons_results[taxon][dotpoint] = value
     return taxons_results
 
 
