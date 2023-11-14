@@ -717,7 +717,7 @@ def show_random_frames(
                                 'DOTPOINTS': { str(i): {
                                     "DOTPOINT_ID": None,
                                     "TAXONS": {},
-                                    "SUBSTRATE": {},
+                                    "SUBSTRATE": None,
 
                                     }  for i in range(1, 11)}, 
                                 'STATUS': "NOT_STARTED"

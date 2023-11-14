@@ -4,3 +4,8 @@ enableStaticServing = true
 
 [runner]
 enforceSerializableSessionState = true
+
+
+[theme]
+base="light"
+primaryColor="#355d9c"
