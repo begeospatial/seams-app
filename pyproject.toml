@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "seams-app"
-version = "1.8.3.1"
+version = "2.0.0"
 description = "Sveriges Geologiska Undersökning (SGU) - SEafloor Annotation and Mapping Support"
 authors = ["Be GeoSpatial AB <sgu.seams.app@begeospatial.com>"]
 readme = "README.md"
