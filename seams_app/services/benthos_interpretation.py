@@ -374,67 +374,6 @@ def extended_taxons_list()->list:
     
     return extended_list
 
-
-def toggle_dotpoint(dotpoint_number, dotpoints_type: Literal['taxon', 'substrate']='taxon')->dict:
-    dictionary = st.session_state
-    key = None
-    if dotpoints_type == 'taxon':
-        key = f"{dotpoints_type}_dotpoint_{dotpoint_number}"
-    if dotpoints_type == 'substrate':
-        key = f"{dotpoints_type}_dotpoint_{dotpoint_number}"
-    
-    if key is not None and key in dictionary:
-        dictionary[key] = not dictionary[key]
-
-    st.session_state = dictionary
-    return dictionary
-
-def set_dotpoints(dotpoint_indexes:list, value:bool =True, dotpoints_type: Literal['taxon', 'substrate']='taxon')->dict:
-    dictionary = st.session_state
-    for dotpoint_index in dotpoint_indexes:
-        key = f"{dotpoints_type}_dotpoint_{dotpoint_index}"
-        if key in dictionary:
-            dictionary[key] = value
-    st.session_state = dictionary
-    return dictionary
-
-
-def flatten_list(input_list:list)->list:
-    flattened = [value for sublist in input_list for value in sublist]
-    return flattened
-
-
-
-
-# --------------
-def dict_to_dataframe(DOTPOINTS:dict):
-    frame_data = []
-    for frame_key, frame_info in RANDOM_FRAMES.items():
-        for dotpoint_id in range(1,11):
-
-            st.info(DOTPOINTS[str(dotpoint_id)])
-            
-            
-            taxons_list = [taxon for taxon, value in DOTPOINTS[str(dotpoint_id)].get("TAXONS", {}).items() if value]
-            substrate_list = [substrate for substrate, value in DOTPOINTS[str(dotpoint_id)].get("SUBSTRATE", {}).items() if value]
-
-            row_data = {
-                "FRAME_KEY": frame_key,                
-                "DOTPOINT_ID": dotpoint_id,
-                "frame_x_coord": dotpoint_info.get("frame_x_coord", None),
-                "frame_y_coord": dotpoint_info.get("frame_y_coord", None),
-                "TAXONS": taxons_list,
-                "SUBSTRATE": substrate_list,
-                "boundary_width": dotpoint_info.get("boundary_width", None),
-                "boundary_height": dotpoint_info.get("boundary_height", None),
-                "FILEPATH": frame_info["FILEPATH"]
-            }
-            frame_data.append(row_data)
-
-    df = pd.DataFrame(frame_data)
-    return df
-
-
 def show_frame_select_menu(
         SURVEY_NAME:str, 
         STATION_NAME:str, 
@@ -877,6 +816,60 @@ def show_station_progress(STATION_DATA:dict):
     st.dataframe(pd.DataFrame(progress_dict).T)
 
 
+def create_station_summary(STATION_DATA:dict):
+    frames_df = []
+    results_list = []
+    all_taxons = []
+    all_substrates = []
+    export_cols = {}
+    core_columns = {'SURVEY_NAME':str, 'STATION_NAME':str, 'VIDEO_NAME':str, 'FRAME_NAME':str, 'DOTPOINT_ID':str, 'frame_x_coord':int, 'frame_y_coord':int} 
+    
+    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+            
+        result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']
+ 
+        
+        for p in result_dict:
+            result_dict[p]['FRAME_NAME'] = FRAME_NAME
+            result_dict[p]['SURVEY_NAME'] = SURVEY_NAME
+            result_dict[p]['STATION_NAME'] = STATION_NAME
+            result_dict[p]['VIDEO_NAME'] = VIDEO_NAME
+            s = result_dict[p]['SUBSTRATE']
+            if s is not None:
+                all_substrates.append(s)
+                result_dict[p][result_dict[p]['SUBSTRATE']] = True
+            for t in result_dict[p]['TAXONS']:
+                if t is not None:
+                    result_dict[p][t] = result_dict[p]['TAXONS'][t]
+                    all_taxons.append(t)
+        results_list.append(result_dict)
+
+    substrates_columns = {s:bool for s in set(all_substrates)}
+    taxons_columns = {t:bool for t in set(all_taxons)}
+    
+    export_cols.update(core_columns)
+
+    if len(all_taxons) > 0:
+        export_cols.update(taxons_columns)
+
+    if len(all_substrates) > 0:
+        export_cols.update(substrates_columns)
+
+
+    for result in results_list:
+        frames_df.append(pd.DataFrame.from_dict(
+            result, 
+            orient='index', 
+            columns=list(core_columns.keys()) + list(set(all_substrates)) + list(set(all_taxons)), 
+            # dtype=export_cols,
+            ))
+
+    return pd.concat(frames_df)
+
+    
+
+
+
 try:
     DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
     current_flagged_taxons = st.session_state.get('APP', {}).get('current_flagged_taxons', [])
@@ -1189,32 +1182,51 @@ try:
                 STATION_DATA = load_yaml(STATION_FILEPATH)
 
                 show_station_progress(STATION_DATA=STATION_DATA)
-                
-                for p in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']:
-                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_x_coord'] = centroids_dict[int(p)].x
-                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_y_coord'] = centroids_dict[int(p)].y
-                
-                
-                result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].copy()
-                all_taxons = []
-                all_substrates = []
-                core_columns = ['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord']  # 'boundary_width', 'boundary_height',
-                for p in result_dict:
-                    result_dict[p]['FRAME_NAME'] = FRAME_NAME
-                    result_dict[p]['SURVEY_NAME'] = SURVEY_NAME
-                    result_dict[p]['STATION_NAME'] = STATION_NAME
-                    result_dict[p]['VIDEO_NAME'] = VIDEO_NAME
-                    s = result_dict[p]['SUBSTRATE']
-                    all_substrates.append(s)
-                    result_dict[p][result_dict[p]['SUBSTRATE']] = True
 
-                    for t in result_dict[p]['TAXONS']:
-                        result_dict[p][t] = result_dict[p]['TAXONS'][t]
-                        all_taxons.append(t)
-                    
-                _df = pd.DataFrame.from_dict(result_dict, orient='index', columns=core_columns + list(set(all_substrates)) + list(set(all_taxons)))
+                st.markdown(f'**Station summary**')
+                            
+                if 'TAXONS' not in STATION_DATA:
+                    STATION_DATA['TAXONS'] = {}
+                if 'SUBSTRATES' not in STATION_DATA:
+                    STATION_DATA['SUBSTRATES'] = {}
                 
-                st.write(_df)
+                core_columns = {'SURVEY_NAME':str, 'STATION_NAME':str, 'VIDEO_NAME':str, 'FRAME_NAME':str, 'DOTPOINT_ID':str, 'frame_x_coord':int, 'frame_y_coord':int} 
+                
+                for _FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+                    result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][_FRAME_NAME]['INTERPRETATION']['DOTPOINTS']
+                    for p in result_dict:
+                        result_dict[p]['DOTPOINT_ID'] = p
+                        result_dict[p]['FRAME_NAME'] = _FRAME_NAME
+                        result_dict[p]['SURVEY_NAME'] = SURVEY_NAME
+                        result_dict[p]['STATION_NAME'] = STATION_NAME
+                        result_dict[p]['VIDEO_NAME'] = VIDEO_NAME
+                        result_dict[p]['frame_x_coord'] = centroids_dict[int(p)].x
+                        result_dict[p]['frame_y_coord'] = centroids_dict[int(p)].y
+                        s = result_dict[p]['SUBSTRATE']
+                        if s is not None:                        
+                            result_dict[p][result_dict[p]['SUBSTRATE']] = True
+                            STATION_DATA['SUBSTRATES'][s] = True
+                        for t in result_dict[p]['TAXONS']:
+                            if t is not None:
+                                result_dict[p][t] = result_dict[p]['TAXONS'][t]
+                                STATION_DATA['TAXONS'][t] = True
+                    
+                    substrates_columns = {s:bool for s in STATION_DATA['SUBSTRATES'].keys()}
+                    taxons_columns = {t:bool for t in STATION_DATA['TAXONS'].keys()}
+                    
+                    frames_df = pd.DataFrame.from_dict(
+                            result_dict, 
+                            orient='index', 
+                            columns=list(core_columns.keys()) + list(substrates_columns.keys()) + list(taxons_columns.keys()), 
+                            
+                            )
+                    
+                    results.append(frames_df)
+                    # ---------
+                station_df = pd.concat(results)
+                st.dataframe(
+                    station_df[list(core_columns.keys()) + list(substrates_columns.keys()) + list(taxons_columns.keys())], 
+                    hide_index=True)
 
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
