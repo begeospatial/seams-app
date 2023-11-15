@@ -714,10 +714,12 @@ def show_random_frames(
                         RANDOM_FRAMES = {k: {
                             'FILEPATH': AVAILABLE_FRAMES[k],
                             'INTERPRETATION': {
-                                'DOTPOINTS': { str(i): {
+                                'DOTPOINTS': { str(i).zfill(3): {
                                     "DOTPOINT_ID": None,
                                     "TAXONS": {},
                                     "SUBSTRATE": None,
+                                    'frame_x_coord': None,
+                                    'frame_y_coord': None,
 
                                     }  for i in range(1, 11)}, 
                                 'STATUS': "NOT_STARTED"
