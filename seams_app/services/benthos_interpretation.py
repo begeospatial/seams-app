@@ -860,6 +860,23 @@ def get_station_interpreted_taxons_subtrates(STATION_DATA:dict)->dict:
     return station
 
 
+def show_station_progress(STATION_DATA:dict):
+
+    STATION_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['STATION_NAME']
+    frames_taxons_interpreted = {}
+    frames_substrates_interpreted = {}
+    station_seafloor = get_station_interpreted_taxons_subtrates(STATION_DATA)
+
+    for FRAME_NAME in station_seafloor.keys():
+        frames_taxons_interpreted[FRAME_NAME] = True if len(station_seafloor[FRAME_NAME]['TAXONS'])>0 else False
+        frames_substrates_interpreted[FRAME_NAME] = True if len(station_seafloor[FRAME_NAME]['SUBSTRATES'])>0 else False
+    
+    progress_dict = {'TAXONS': frames_taxons_interpreted, 'SUBSTRATES': frames_substrates_interpreted}
+    
+    st.subheader(f'**:blue[{STATION_NAME}] | interpretation progress**')
+    st.dataframe(pd.DataFrame(progress_dict).T)
+
+
 try:
     DATA_DIRPATH = st.session_state.get('APP', {}).get('CONFIG', {}).get('DATA_DIRPATH', None)
     current_flagged_taxons = st.session_state.get('APP', {}).get('current_flagged_taxons', [])
@@ -964,7 +981,7 @@ try:
 
             centroids_dict = { i+1: centroid for i, centroid in enumerate(centroids) }
             # ENHANCEMENT: RE-ENABLE n-ROWS and auto select 10 random frames
-            colnames = [str(i) for i in centroids_dict.keys()]
+            colnames = [str(i).zfill(3) for i in centroids_dict.keys()]
 
             show_modified_image(
                 image, 
@@ -1095,7 +1112,8 @@ try:
                         )                
                     
                     taxa_results = translate_dictionary(df_taxa_editor.to_dict())
-
+                    # TODO: checkup that at least one True value is in taxa_results
+                    # TODO: CHeck that if Bare substrate is selected, no other substrate is selected
                     confirm_taxa = st.button(
                         label=f'ADD: **{_taxa_to_add}**', 
                         help=f'Confirm the **taxa** to add to the available taxa list', 
@@ -1140,6 +1158,7 @@ try:
                     st.markdown('**General in frame**')
                 
                     FRAME_INTERPRETATION = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+
                     OTHER_COVERS = [i for i in FRAME_INTERPRETATION.get('GENERAL_IN_FRAME', {}).keys()]
                     
                     GENERAL_IN_FRAME = st.multiselect(
@@ -1166,144 +1185,36 @@ try:
 
             
             with tabResults:
+                results = []
+                STATION_DATA = load_yaml(STATION_FILEPATH)
+
+                show_station_progress(STATION_DATA=STATION_DATA)
                 
-                #STATION_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['STATION_NAME']
-                frames_taxons_interpreted = {}
-                frames_substrates_interpreted = {}
-                station_seafloor = get_station_interpreted_taxons_subtrates(STATION_DATA)
-                for FRAME_NAME in station_seafloor.keys():
-                    frames_taxons_interpreted[FRAME_NAME] = True if len(station_seafloor[FRAME_NAME]['TAXONS'])>0 else False
-                    frames_substrates_interpreted[FRAME_NAME] = True if len(station_seafloor[FRAME_NAME]['SUBSTRATES'])>0 else False
-                progress_dict = {'TAXONS': frames_taxons_interpreted, 'SUBSTRATES': frames_substrates_interpreted}
-                st.session_state['CURRENT']['progress_dict'] = progress_dict
+                for p in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']:
+                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_x_coord'] = centroids_dict[int(p)].x
+                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_y_coord'] = centroids_dict[int(p)].y
                 
-                st.subheader(f'**:blue[{STATION_NAME}] | interpretation progress**')
-                st.dataframe(pd.DataFrame(progress_dict).T)
                 
-            
-                # ----
-                with st.expander(label='**Station summary**', expanded=True):
-                    SURVEY_FILEPATH = CURRENT.get('SURVEY_FILEPATH', None)
-                    STATIONS = get_stations_available(SURVEY_FILEPATH=SURVEY_FILEPATH)
+                result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].copy()
+                all_taxons = []
+                all_substrates = []
+                core_columns = ['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord']  # 'boundary_width', 'boundary_height',
+                for p in result_dict:
+                    result_dict[p]['FRAME_NAME'] = FRAME_NAME
+                    result_dict[p]['SURVEY_NAME'] = SURVEY_NAME
+                    result_dict[p]['STATION_NAME'] = STATION_NAME
+                    result_dict[p]['VIDEO_NAME'] = VIDEO_NAME
+                    s = result_dict[p]['SUBSTRATE']
+                    all_substrates.append(s)
+                    result_dict[p][result_dict[p]['SUBSTRATE']] = True
 
-
-                    METADATA = STATION_DATA.get('METADATA', {})
-                    METADATA['STATION_NAME'] = STATION_NAME
-                    METADATA['SURVEY_NAME'] = SURVEY_NAME
-                    METADATA['VIDEO_NAME'] = VIDEO_NAME
-
-                    st.write(centroids_dict)
-                    #st.write(int(centroids_dict['10'].x))
-
-                    FRAME_NAMES = list(STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'].keys()).sort()
-                    FRAME_INTERPRETATION = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
-
-                    if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
-                        _IDs = FRAME_INTERPRETATION['DOTPOINTS'].keys()
-                        _df = pd.DataFrame.from_dict(FRAME_INTERPRETATION['DOTPOINTS'], orient='index')
-                        #_df['SURVEY_NAME'] = STATION_DATA['BENTHOS_INTERPRETATION']['SURVEY_NAME']
-                        #_df['STATION_NAME'] = STATION_DATA['BENTHOS_INTERPRETATION']['STATION_NAME']
-                        #_df['VIDEO_NAME'] = STATION_DATA['BENTHOS_INTERPRETATION']['VIDEO_NAME']
-                        #_df['FRAME_NAME'] = FRAME_NAME
-                        st.write(_IDs)
+                    for t in result_dict[p]['TAXONS']:
+                        result_dict[p][t] = result_dict[p]['TAXONS'][t]
+                        all_taxons.append(t)
                     
-                    
-                """
-                with trcol2:
-                    df = []
-                    taxons = {}
-                    summary = {}
-                        
-                    for _FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
-                        #[FRAME_NAME]['INTERPRETATION']['DOTPOINTS']
-                    
-                        
-
-                        METADATA = STATION_DATA.get('METADATA', {})
-
-                        if len(METADATA) > 0:            
-                            
-                                for t in seafloor_dict['TAXONS'].keys():                                   
-                                    _df[t] = None
-                                    summary[t] = 0                                                       
-                                for s in seafloor_dict['SUBSTRATES'].keys():
-                                    _df[s] = None
-                                    summary[s] = 0
-
-                                for id in _IDs:
-                                    is_id = _df['DOTPOINT_ID'] == id
-                                    _subtrate = _df.loc[is_id, 'SUBSTRATE'].tolist()[0]
-                                    _taxons = _df.loc[is_id, 'TAXONS'].tolist()[0]
-                                    if isinstance(_taxons, dict):
-                                        _taxons = list(_taxons.keys())
-                                    if isinstance(_subtrate, dict):
-                                        _subtrate = list(_subtrate.keys())[0]
-
-                                    if _subtrate in substrates:
-                                        _df.loc[is_id, _subtrate] = 1
-                                        
-
-                                    for t in _taxons:
-                                        if t is not None:                                        
-                                            if t in taxons:
-                                                _df.loc[is_id, t] = 1
-                                                
-
-                                df.append(_df)
-
-                                st.write(_df)
-                    df = pd.concat(df)
-                    df = df.drop(columns=['SUBSTRATE', 'TAXONS'])
-
-                    is_station = df['STATION_NAME'] == STATION_NAME
-
-                    for t in taxons:
-                        summary[t] = df.loc[is_station, t].sum()
-                    for s in substrates:
-                        summary[s] = df.loc[is_station, s].sum()
-
-
-                    column_config = {                                        
-                    
-                        'frame_x_coord': {'editable': False, 'rename': False},
-                        'frame_y_coord': {'editable': False, 'rename': False},
-                        'DOTPOINT_ID': {'editable': False, 'rename': False},                            
-                        } 
-                    
-                    st.markdown(f'## Percent cover `{STATION_NAME}`')
-                    st.dataframe(pd.DataFrame.from_dict(summary, orient='index').T, hide_index=True)
-                    st.markdown('## Survey results')
-                    data_editor = st.data_editor(
-                        data=df,
-                        #num_rows=10,
-                        column_config= column_config,
-                        key='data_editor_survey',
-                        use_container_width=True, 
-                        hide_index=True,
-                        column_order=['SURVEY_NAME', 'STATION_NAME', 'VIDEO_NAME', 'FRAME_NAME', 'DOTPOINT_ID', 'frame_x_coord', 'frame_y_coord']+ taxons + substrates,
-                        disabled=True,
-                        )
-                    
-                    st.divider()           
-
-                    #save_to_file = st.button(label='Save file `csv`', key=f'button_save_survey')
-                    #if save_to_file:
-                    #    filename = os.path.join(SURVEY_DIRPATH, f'SEAMS_SURVEY_RESULTS_{SURVEY_NAME}.csv')
-                    #    with st.spinner('Saving file...'):
-                    #        df.to_csv(
-                    #            os.path.join(filename),
-                    #                encoding='utf-8',
-                    #                index=False,
-                    #                )
-                            
-                    #    if os.path.exists(filename):
-                    #        st.info(f'File saved: {filename}')
-                    #        st.balloons()
-                    """
-
-
-
-
+                _df = pd.DataFrame.from_dict(result_dict, orient='index', columns=core_columns + list(set(all_substrates)) + list(set(all_taxons)))
+                
+                st.write(_df)
 
         else:
             st.warning('Survey not initialized. Go to **Menu>Survey initialization** to initialize the survey.')
