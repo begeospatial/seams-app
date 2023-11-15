@@ -1182,7 +1182,11 @@ try:
                 STATION_DATA = load_yaml(STATION_FILEPATH)
 
                 show_station_progress(STATION_DATA=STATION_DATA)
-
+                
+                #for p in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']:
+                #    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_x_coord'] = centroids_dict[int(p)].x
+                #    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_y_coord'] = centroids_dict[int(p)].y
+                
                 st.markdown(f'**Station summary**')
                             
                 if 'TAXONS' not in STATION_DATA:
