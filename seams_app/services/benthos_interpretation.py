@@ -826,8 +826,7 @@ def create_station_summary(STATION_DATA:dict):
     
     for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
             
-        result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']
- 
+        result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'] 
         
         for p in result_dict:
             result_dict[p]['FRAME_NAME'] = FRAME_NAME
