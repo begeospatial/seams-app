@@ -4,6 +4,116 @@ import yaml
 from bgstools.datastorage import DataStore, YamlStorage
 import streamlit as st
 import hashlib
+import datetime
+
+
+
+def str_as_dtype(datatype: str, callback: callable = None):
+    """
+    Converts a string representation of a data type to the corresponding Python data type.
+
+    Args:
+        datatype (str): The string representation of the data type.
+        callback (callable, optional): A callback function to handle exceptions.
+
+    Returns:
+        The corresponding Python data type if `datatype` is a valid type, otherwise None.
+        The exception is `datetime` which is returned as a string.
+
+    Raises:
+        TypeError: If `datatype` is not a string.
+        ValueError: If `datatype` is not a recognized data type.
+
+    Example:
+        str_as_dtype('int')  # returns <class 'int'>
+        str_as_dtype('bool')  # returns <class 'bool'>
+    """
+    try:
+        if not isinstance(datatype, str):
+            raise TypeError("Input 'datatype' must be a string.")
+
+        if datatype == 'str':
+            return str
+        elif datatype == 'int':
+            return int
+        elif datatype == 'float':
+            return float
+        elif datatype == 'bool':
+            return bool
+        elif datatype == 'datetime':
+            return datetime
+        else:
+            raise ValueError(f"Unrecognized data type: '{datatype}'")
+
+    except Exception as e:
+        if callback is not None and callable(callback):
+            exception_message = f"**`str_as_dtype` exception occurred:** {e}"
+            callback(exception_message)
+        else:
+            raise
+
+
+def get_nested_dict_value(data_dict, keys_list, default=None):
+    """
+    This function retrieves a value from a nested dictionary using a list of keys. 
+    If a KeyError is encountered at any level, the function will return a default value.
+
+    Args:
+        data_dict (dict): The dictionary from which to retrieve the value.
+        keys_list (list): A list of keys, ordered by their level in the dictionary.
+        default (any, optional): The default value to return if any key in keys_list is not found. 
+            Defaults to None.
+
+    Returns:
+        The value at the nested key if it exists, otherwise the default value.
+    """
+    try:
+        for key in keys_list:
+            data_dict = data_dict.get(key, None)
+        return data_dict
+    except KeyError:
+        return default
+    
+
+def colnames_dtype_mapping(colnames_dtype_dict: dict | list)-> dict:
+    """
+    Maps column names to their corresponding data types based on the provided dictionary.
+
+    Args:
+        colnames_dtype_dict (dict): A dictionary mapping column names to their data types.
+
+    Returns:
+        A new dictionary where keys are column names and values are the corresponding data types.
+
+    Raises:
+        TypeError: If `colnames_dtype_dict` is not a dictionary.
+        ValueError: If `colnames_dtype_dict` is empty or contains invalid data types.
+
+    Example:
+        colnames_dtype_mapping({'col1': 'int', 'col2': 'str', 'col3': 'float'})
+        # returns {'col1': <class 'int'>, 'col2': <class 'str'>, 'col3': <class 'float'>}
+    """
+    _colnames_dtype_dict = colnames_dtype_dict
+    try:
+        if isinstance(colnames_dtype_dict, list):
+            for item in colnames_dtype_dict:
+                _colnames_dtype_dict = {item['colname']: item['dtype'] for item in colnames_dtype_dict}
+
+        if not isinstance(_colnames_dtype_dict, dict):
+            raise TypeError("Input 'colnames_dtype_dict' must be a dictionary.")
+
+        if not _colnames_dtype_dict:
+            raise ValueError("Input 'colnames_dtype_dict' cannot be empty.")
+
+        mapping = {}
+        for colname, dtype in _colnames_dtype_dict.items():
+            mapping[colname] = str_as_dtype(dtype)
+
+        return mapping
+
+    except (TypeError, ValueError) as e:
+        # Handle the exception or re-raise it
+        raise e
 
 
 def toggle_button(on_sidebar=False, *args, key=None, **kwargs):
@@ -180,6 +290,15 @@ def update_station_data(STATION_DATA:dict, STATION_FILEPATH:str):
     # Save the station data to a file.
      with open(STATION_FILEPATH, 'w', encoding='utf-8') as f:
         yaml.safe_dump(STATION_DATA, f, allow_unicode=True)
+
+
+def update_yaml_data(DATA:dict, YAML_FILEPATH:str):
+    try:            
+        with open(YAML_FILEPATH, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(DATA, f, allow_unicode=True)
+    except IOError as e:        
+        print(e)
+
 
 
 st.cache_data()
