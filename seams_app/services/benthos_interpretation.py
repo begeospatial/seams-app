@@ -12,57 +12,6 @@ STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAX
 from markers import create_bounding_box, markers_grid, floating_marker 
 from custom_options import SGU_custom_options
 from seams_utils import update_station_data, toggle_button
-import streamlit.components.v1 as components
-
-
-
-class ImageZoomOverlay(components.ComponentBase):
-
-  def __init__(self, image, zoom_levels=[2, 5, 10], caption=None):
-    self.image = image
-    self.zoom_levels = zoom_levels
-    self.caption = caption
-
-    self._mouse_x = 0
-    self._mouse_y = 0
-    self._zoom_level = 0
-
-  def on_mousemove(self, mouse_x, mouse_y):
-    self._mouse_x = mouse_x
-    self._mouse_y = mouse_y
-
-  def render(self):
-    image_width, image_height = self.image.size
-
-    zoom_options = st.selectbox('Zoom level',
-                                options=self.zoom_levels,
-                                key='zoom_select')
-    self._zoom_level = zoom_options
-
-    zoomed_image = self.image.resize(
-        (image_width * self._zoom_level, image_height * self._zoom_level))
-
-    overlay_width = 250
-    overlay_height = 250
-
-    overlay_x = max(
-        0,
-        min(self._mouse_x * self._zoom_level - overlay_width / 2,
-            image_width * self._zoom_level - overlay_width))
-    overlay_y = max(
-        0,
-        min(self._mouse_y * self._zoom_level - overlay_height / 2,
-            image_height * self._zoom_level - overlay_height))
-
-    st.image(self.image, width=image_width, caption=self.caption)
-
-    if zoom_options > 1:
-      st.image(zoomed_image.crop(
-          (overlay_x, overlay_y, overlay_x + overlay_width,
-           overlay_y + overlay_height)),
-               width=overlay_width,
-               height=overlay_height,
-               opacity=0.5)
 
 
 class Status(Enum):
@@ -743,11 +692,10 @@ def show_modified_image(image, centroids_dict:dict, show_dotpoints_overlay:bool=
         modified_image = image
 
     
-    ImageZoomOverlay(modified_image, zoom_levels=[2, 5, 10], caption='Zoomed image').render()
-    #st.image(
-    #    modified_image,
-    #    use_column_width='always',        
-    #    )
+    st.image(
+        modified_image,
+        use_column_width='always',        
+        )
     
 
 def frame_to_station_taxons_dictionary(frame_name:str, STATION_DATA:str, taxons_results:dict)->dict:
