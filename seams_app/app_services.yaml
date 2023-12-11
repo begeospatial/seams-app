@@ -4,6 +4,11 @@
 # maintainer: José Beltrán - Be GeoSpatial
 
 - 
+  name: '(0) DEVOPS'
+  description: 'ZOOM'
+  url: "private_zoom.py"
+
+- 
   name: '(1) Stations initialization'
   description: 'Stations'
   url: "stations_init.py"

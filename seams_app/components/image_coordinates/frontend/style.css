@@ -1,0 +1,13 @@
+#image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80vh; /* 80% height of the viewport */
+  }
+  
+  #image {
+    max-width: 100%; /* Ensures image is not larger than its container */
+    max-height: 100%; /* Ensures image does not exceed viewport height */
+    object-fit: contain; /* Keeps the aspect ratio of the image */
+  }
+  
