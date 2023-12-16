@@ -7,6 +7,21 @@ import hashlib
 import datetime
 
 
+def logarithmic_scale(value, min_power, max_power):
+    """
+    Converts a linear value to a logarithmic scale.
+
+    :param value: The linear value to be converted (e.g., the slider position).
+    :param min_power: The minimum power of 10 in the logarithmic scale.
+    :param max_power: The maximum power of 10 in the logarithmic scale.
+    :return: The value on a logarithmic scale.
+    """
+    log_min = np.log10(10 ** min_power)
+    log_max = np.log10(10 ** max_power)
+    scale = (log_max - log_min) / (max_power - min_power)
+    
+    return 10 ** (log_min + scale * (value - min_power))
+
 
 def str_as_dtype(datatype: str, callback: callable = None):
     """
