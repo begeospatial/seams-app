@@ -11,6 +11,7 @@ seams_current_cache_data.yaml
 pgdata/
 geodata/
 *.code-workspace
+node_modules/
 
 # Repo-specific GitIgnore ----------------------------------------------------------------------------------------------
 *.jpg
