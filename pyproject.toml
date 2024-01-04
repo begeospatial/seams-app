@@ -23,6 +23,9 @@ fsspec = "^2023.6.0"
 shapely = "^2.0.1"
 bgstools = "^0.2.1"
 bgsio = "^0.1.4"
+torch = "^2.1.2"
+torchvision = "^0.16.2"
+seaborn = "^0.13.1"
 
 
 [build-system]
