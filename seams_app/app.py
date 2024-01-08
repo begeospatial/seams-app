@@ -6,7 +6,7 @@ from bgstools.stt import build_activities_menu
 from bgsio import load_toml_variables, create_subdirectory, create_new_directory
 from bgstools.datastorage import DataStore, YamlStorage
 from seams_utils import update_station_data
-
+from version import __version__ as ver
 # --------------------
 st.set_page_config(
     layout='wide',
@@ -444,6 +444,12 @@ def run():
     init_session_state()
     build_sidebar()
     survey_data_management()
+    
+    with st.sidebar:
+        st.divider()
+        _,c2,_ = st.columns([1,2,1])
+        with c2:
+            st.write(f'version: {ver}')
 
 
 
