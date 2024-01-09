@@ -1,12 +1,9 @@
 import os
-import random
 import streamlit as st
 import pandas as pd
 from PIL import Image
-from typing import Literal
 from enum import Enum
 import traceback
-from bgstools.datastorage import DataStore
 from bgsio import load_yaml
 
 from seafloor import substrates, phytobenthosCommonTaxa, \
@@ -14,7 +11,10 @@ STRATUM_ID, SPECIES_FLAGS, OTHER_BENTHOS_COVER_OR_BIOTURBATION, USER_DEFINED_TAX
 
 from markers import create_bounding_box, markers_grid, floating_marker 
 from custom_options import SGU_custom_options
-from seams_utils import update_station_data, load_datastore, toggle_button, get_stations_available
+from seams_utils import update_station_data, toggle_button
+#from components.frames_zoom import frames_zoom
+from zoom_select_image_component import zoom_select_image_component
+
 
 class Status(Enum):
     IN_PROGRESS = 'IN_PROGRESS'  # 'ICON': ':hourglass_flowing_sand:'
@@ -128,8 +128,6 @@ def station_results(STATION_DATA, taxons:list = [], substrates:list = []):
                         _taxons = list(_taxons.keys())
                     if isinstance(_subtrate, dict):
                         _subtrate = list(_subtrate.keys())[0]
-
-                    #st.write(_subtrate, _taxons)
 
                     if _subtrate in substrates:
                         _df.loc[is_id, _subtrate] = 1
@@ -685,7 +683,7 @@ def translate_dictionary(input_dict):
 
     return translated_dict
     
-st.cache_data()    
+#st.cache_data()    
 def show_modified_image(image, centroids_dict:dict, show_dotpoints_overlay:bool=True):
     
     if show_dotpoints_overlay:
@@ -693,10 +691,14 @@ def show_modified_image(image, centroids_dict:dict, show_dotpoints_overlay:bool=
     else:
         modified_image = image
 
-    st.image(
-        modified_image,
-        use_column_width='always',        
-        )
+   
+    #st.image(
+    #    modified_image,
+    #    use_column_width='always',        
+    #    )
+    
+    return modified_image
+
     
 
 def frame_to_station_taxons_dictionary(frame_name:str, STATION_DATA:str, taxons_results:dict)->dict:
@@ -975,10 +977,13 @@ try:
             # ENHANCEMENT: RE-ENABLE n-ROWS and auto select 10 random frames
             colnames = [str(i).zfill(3) for i in centroids_dict.keys()]
 
-            show_modified_image(
+            modified_image = show_modified_image(
                 image, 
                 centroids_dict=centroids_dict, 
                 show_dotpoints_overlay=show_dotpoints_overlay)
+            
+            # st.image(modified_image, use_column_width=True)                                 
+            zoom_select_image_component(modified_image,  image_key=f"{FRAME_NAME}_{show_dotpoints_overlay}", rectangle_width=250, rectangle_height=250)
             # --------------------------------------------------------------------
 
             tabFrameSubstratesInterpretation, tabFrameTaxaInterpretation, tabFrameGeneral,  tabResults = st.tabs(['**Substrates**', '**Taxons**', '**Frame General**', '**Results**'])
