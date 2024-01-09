@@ -4,9 +4,9 @@
 
 [tool.poetry]
 name = "seams-app"
-version = "2.0.0"
+version = "2.1.0"
 description = "Sveriges Geologiska Undersökning (SGU) - SEafloor Annotation and Mapping Support"
-authors = ["Be GeoSpatial AB <sgu.seams.app@begeospatial.com>"]
+authors = ["Be GeoSpatial AB <develop@begeospatial.com>"]
 readme = "README.md"
 packages = [{include = "seams_app"}]
 
@@ -23,6 +23,7 @@ fsspec = "^2023.6.0"
 shapely = "^2.0.1"
 bgstools = "^0.2.1"
 bgsio = "^0.1.4"
+zoom-select-image-component = "^0.0.6"
 
 
 [build-system]
