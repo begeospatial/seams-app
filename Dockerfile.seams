@@ -1,8 +1,9 @@
 # docker build -t begeospatial/seams-app -f Dockerfile.seams .
+# docker tag begeospatial/seams-app:latest begeospatial/seams-app:v2.1.0
 ARG USER_ID
 ARG GROUP_ID=1000
 # Use python-slim as base image
-FROM python:3.11.4-slim
+FROM python:3.11.7-slim
 
 ENV TZ 'Europe/Stockholm'
 # Set timezone and locale
