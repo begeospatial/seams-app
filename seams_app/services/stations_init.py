@@ -356,7 +356,8 @@ def build_survey_stations(SURVEY_NAME:str = None, stations_dict:dict = None):
             selected_optional_measurements = st.multiselect(
                 '**Select optional measurement types:**',
                 options=sorted(measurement_colnames_dtypes.keys()),                    
-                format_func=lambda x: x.replace('measurementType__',''))
+                format_func=lambda x: x.replace('measurementType__',''), 
+                help='To add more measurement types go to **config** and follow the schema of the `station_measurement_columns_dtypes.yaml` file to add or remove new measurements to the SEAMS app.')
                     
             if selected_optional_measurements:
                 _dtype_mapping =  {k: measurement_colnames_dtypes[k] for k in selected_optional_measurements}
@@ -554,7 +555,7 @@ def survey_selector_box(SURVEYS_AVAILABLE:dict, index:int = 0, format_func: call
             options=SURVEYS_OPTIONS, 
             index=index,
             key='survey_selector',
-            help='Select a benthic interpretation survey.',
+            help='Select a seafloor interpretation survey.',
             format_func=format_func,
             )
         
@@ -637,7 +638,7 @@ def show_random_frames(
         codec:str = None, 
         suffix:str = '***'):
     """
-    Interactively displays and manages random frames for benthic interpretation in a Streamlit application.
+    Interactively displays and manages random frames for seafloor interpretation in a Streamlit application.
     
     Parameters:
     - has_random_frames (bool): Whether random frames are available for the current survey.
@@ -664,7 +665,7 @@ def show_random_frames(
 
     is_ready_for_interpretation = False
 
-    FRAMES_DIRPATH = STATION_DATA['BENTHOS_INTERPRETATION'].get('FRAMES_DIRPATH', None)
+    FRAMES_DIRPATH = STATION_DATA['SEAFLOOR_INTERPRETATION'].get('FRAMES_DIRPATH', None)
         
     AVAILABLE_FRAMES = get_files_dictionary(
         FRAMES_DIRPATH, 
@@ -674,9 +675,9 @@ def show_random_frames(
         # NEW:
         AVAILABLE_FRAMES = {extract_sequence(filename): AVAILABLE_FRAMES[filename] for filename in sorted(AVAILABLE_FRAMES.keys())}
         # Aqui esta el error
-        RANDOM_FRAMES = STATION_DATA['BENTHOS_INTERPRETATION'].get('RANDOM_FRAMES', None)
+        RANDOM_FRAMES = STATION_DATA['SEAFLOOR_INTERPRETATION'].get('RANDOM_FRAMES', None)
         st.session_state['RANDOM_FRAMES_IDS'] = list(RANDOM_FRAMES.keys())
-        _VIDEO_NAME = STATION_DATA['BENTHOS_INTERPRETATION'].get('VIDEO_NAME', None)            
+        _VIDEO_NAME = STATION_DATA['SEAFLOOR_INTERPRETATION'].get('VIDEO_NAME', None)            
         if _VIDEO_NAME == VIDEO_NAME and RANDOM_FRAMES is not None and len(RANDOM_FRAMES)>0:
             show_station_is_ready = True
             is_ready_for_interpretation = False
@@ -726,7 +727,7 @@ def show_random_frames(
                             }, 
                             } for k in RANDOM_FRAMES_IDS}
                         
-                        STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
+                        STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
                         st.session_state['CURRENT']['VIDEO_NAME'] = _VIDEO_NAME                        
                         update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH']) 
 
@@ -737,10 +738,10 @@ def show_random_frames(
                         st.markdown(f'# total : :green[{len(RANDOM_FRAMES_IDS)}] / 10')
                         is_ready = st.button(
                             '**ready for interpretation**', 
-                            help=f'Selected **{STATION_NAME}** is **:green[ready for interpretation]**. Click to save data, then Go to **MENU > Benthos interpretation** to start the interpretation workflow.')
+                            help=f'Selected **{STATION_NAME}** is **:green[ready for interpretation]**. Click to save data, then Go to **MENU > Seafloor interpretation** to start the interpretation workflow.')
                         if is_ready:
                             is_ready_for_interpretation = True
-                            STATION_DATA['BENTHOS_INTERPRETATION']['IS_READY'] = is_ready_for_interpretation
+                            STATION_DATA['SEAFLOOR_INTERPRETATION']['IS_READY'] = is_ready_for_interpretation
                             st.session_state['CURRENT']['IS_READY'] = is_ready_for_interpretation
 
                             with st.spinner():
@@ -753,7 +754,7 @@ def show_random_frames(
                             update_station_data(st.session_state['CURRENT'], st.session_state['CURRENT_FILEPATH']) 
                             
                             
-                            st.toast('go to **MENU > Benthos interpretation**')                            
+                            st.toast('go to **MENU > Seafloor interpretation**')                            
                             st.rerun()
                             
                                                  
@@ -772,7 +773,7 @@ def show_random_frames(
                 RANDOM_FRAMES = select_random_frames(frames=AVAILABLE_FRAMES, num_frames=10)
                 
                 if RANDOM_FRAMES is not None and len(RANDOM_FRAMES)==10:
-                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES                    
+                    STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES                    
                     
                     display_image_carousel(AVAILABLE_FRAMES, list(RANDOM_FRAMES.keys()))
             else:
@@ -832,7 +833,7 @@ def save_stations(STATIONS:dict, VIDEOS:dict, SURVEY_DIRPATH:str, fileExtension:
             station = {'METADATA': _station}
 
             station['VIDEOS'] = VIDEOS[siteName]
-            station['BENTHOS_INTERPRETATION'] = {}
+            station['SEAFLOOR_INTERPRETATION'] = {}
             # Check if the siteName is valid.
             if siteName and len(siteName) > 0:
                 siteNameToFileName = siteName.strip().replace(' ', '_')
@@ -854,8 +855,8 @@ def save_stations(STATIONS:dict, VIDEOS:dict, SURVEY_DIRPATH:str, fileExtension:
                     keys_set = set(saved_station.keys()) | set(station.keys())
                     # UPDATING saved_station with station
                     updated_station = {k: station.get(k, saved_station[k]) for k in keys_set}
-                    # Ensuring that we allways keep the saved data from BENTHOS_INTEPRETATION
-                    updated_station['BENTHOS_INTERPRETATION'] = saved_station['BENTHOS_INTERPRETATION']
+                    # Ensuring that we allways keep the saved data from SEAFLOOR_INTEPRETATION
+                    updated_station['SEAFLOOR_INTERPRETATION'] = saved_station['SEAFLOOR_INTERPRETATION']
                 else:
                     updated_station = station
                 
@@ -925,15 +926,26 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILE
 
 
     # Stations
-    help_message= "**WORKFLOW:** Add or remove optional columns first then add data to the dataframe, matching the colums order. \n" \
-            "**WARNING:** Every time the optional columns are added or deleted, the dataframe is reinitialized from scratch. \n" \
-            " **NOTE**: `siteName` **:red[is case sensitive]**. You can also, ***Copy and Paste*** the stations information from Excel, just ensure to match the columns order. \n" \
-            "**Customization is possible**. The optional columns are defined in the `config/station_measurement_columns_dtypes.yaml`." 
+    help_message= "**WORKFLOW:** Add or remove optional columns first then add data to the dataframe, matching the colums order. \n"
+    
 
-        
+    
+    with st.expander('**Instructions**', expanded= True):
+                
+            secol1, secol2 = st.columns([1,2], gap='medium')
+            with secol1:
+                st.subheader(f'**{SURVEY_NAME}** | data editor')
+                st.success("Use the **Stations data editor** to add Stations and Videos data.")
+                st.info(" **NOTE**: `siteName` **:red[is case sensitive]**.")
+                st.info("Ensure to match the columns order on both tables.")
+                st.info("**Customization is possible**. Core columns are defined in the `/config/station_core_columns_dtypes.yaml` and `config/video_core_columns_dtypes.yaml`. The optional measurements are defined in the `config/station_measurement_columns_dtypes.yaml`.")
+            with secol2:
+                st.info("1) Optional measurements should be selected first if any. Add or remove optional columns first then add data to the dataframe, matching the colums order. :red[**WARNING:** Every time the optional columns are added or deleted, the dataframe is reinitialized from scratch].")
+                st.info("1) Manually add or ***Copy and Paste*** the **station** data from a spreedsheet in the **Station table**.  Match the columns order.")
+                st.info("2) Manually add or ***Copy and Paste*** the **videos** available for each station (`siteName`) in the **Videos table**, it could be more than one. Use the `fileName` of the video saved in the `../data/SURVEYS/<your survey name>/VIDEOS/` folder. The `IN_VIDEOS_DIRPATH` column a non-editable checkbox will show after saving confirmation that will be enabled if the video was found by the SEAMS app in the videos folder. ")
+                st.info("3) Both, **Stations** and **Video** tables **must** be filled in before saving. Review your data, then save using the `save survey data` button.")
+    
     with st.expander('**Stations data editor**', expanded=False):
-            
-        st.subheader(f'**{SURVEY_NAME}** | data editor')                           
         st.markdown('**Stations**' , help= help_message)
 
         # ----build_survey_stations
@@ -978,7 +990,7 @@ def survey_data_editor(SURVEY_DATA:dict, SURVEY_DATASTORE:DataStore, SURVEY_FILE
         # --------------------
         # Videos
         st.markdown('**Videos**', help="Add the relevant video stations to the videos table, including the site name and filename. "
-                                        "You can also, ***Copy and Paste*** from Excel. Use the 'SELECT' indicator if the video is intended for benthos interpretation.  " 
+                                        "You can also, ***Copy and Paste*** from Excel. Use the 'SELECT' indicator if the video is intended for seafloor interpretation.  " 
                                         "Feel free to include multiple videos for each station (`siteName` :red[**is case-sensitive**]), if you have more than one per station. N")
         
         if _videos_df is not None and len(_videos_df)>0:
@@ -1196,7 +1208,7 @@ def show_video_processing(
                                             {_VIDEO_NAME: True, 
                                             VIDEO_NAME: False})
                                         
-                                        STATION_DATA['BENTHOS_INTERPRETATION'].update(VIDEO_INTERPRETATION)
+                                        STATION_DATA['SEAFLOOR_INTERPRETATION'].update(VIDEO_INTERPRETATION)
                                         with st.spinner('Saving station data...'):
                                             update_station_data(
                                                 STATION_DATA=STATION_DATA,
@@ -1225,7 +1237,7 @@ def show_video_processing(
                                 STATION_DATA['VIDEOS'].update({VIDEO_NAME: True})
 
 
-                                STATION_DATA['BENTHOS_INTERPRETATION'].update(VIDEO_INTERPRETATION)
+                                STATION_DATA['SEAFLOOR_INTERPRETATION'].update(VIDEO_INTERPRETATION)
                                 with st.spinner('Saving station data...'):
                                     update_station_data(
                                         STATION_DATA=STATION_DATA,
@@ -1250,11 +1262,11 @@ def show_video_processing(
                         
                         
                         #
-                        _RANDOM_FRAMES = STATION_DATA['BENTHOS_INTERPRETATION'].get('RANDOM_FRAMES', None)
+                        _RANDOM_FRAMES = STATION_DATA['SEAFLOOR_INTERPRETATION'].get('RANDOM_FRAMES', None)
 
                         if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)>0:
-                            _START_TIME_IN_SECONDS = STATION_DATA['BENTHOS_INTERPRETATION'].get('START_TIME_IN_SECONDS', 0)
-                            _EXTRACT_ONE_FRAME_X_SECONDS = STATION_DATA['BENTHOS_INTERPRETATION'].get('EXTRACT_ONE_FRAME_X_SECONDS', 2)
+                            _START_TIME_IN_SECONDS = STATION_DATA['SEAFLOOR_INTERPRETATION'].get('START_TIME_IN_SECONDS', 0)
+                            _EXTRACT_ONE_FRAME_X_SECONDS = STATION_DATA['SEAFLOOR_INTERPRETATION'].get('EXTRACT_ONE_FRAME_X_SECONDS', 2)
                         else:
                             _START_TIME_IN_SECONDS = 0
                             _EXTRACT_ONE_FRAME_X_SECONDS = 2
@@ -1262,7 +1274,7 @@ def show_video_processing(
                         
                         if _RANDOM_FRAMES is not None and len(_RANDOM_FRAMES)==10:
                             frames_message_01.success(f'**Random frames available**. Total frames: {len(_RANDOM_FRAMES)}')
-                            STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = _RANDOM_FRAMES
+                            STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'] = _RANDOM_FRAMES
 
                             st.session_state['STATION_DATA'] = STATION_DATA
                         else:
@@ -1285,7 +1297,7 @@ def show_video_processing(
                                 LOCAL_VIDEO_FILEPATH= LOCAL_VIDEO_FILEPATH, 
                                 START_TIME_IN_SECONDS= START_TIME_IN_SECONDS)
                             
-                            STATION_DATA['BENTHOS_INTERPRETATION']['START_TIME_IN_SECONDS'] = START_TIME_IN_SECONDS                            
+                            STATION_DATA['SEAFLOOR_INTERPRETATION']['START_TIME_IN_SECONDS'] = START_TIME_IN_SECONDS                            
 
                         max_value = int(video_info['duration'])
                         EXTRACT_ONE_FRAME_X_SECONDS =  extract_frames_num_input.number_input(
@@ -1295,13 +1307,13 @@ def show_video_processing(
                                     value= _EXTRACT_ONE_FRAME_X_SECONDS,
                                     help=f'Select the number of seconds to extract a one frame from the video. Default is **{_EXTRACT_ONE_FRAME_X_SECONDS} seconds.** ' \
                                         f'The maximum value is the **total video duration: {max_value} seconds** divided by 10 frames. ' \
-                                        ' These frames will be randomized and selected to be used for benthic interpretation.' \
+                                        ' These frames will be randomized and selected to be used for seafloor interpretation.' \
                                         ' **:red[WARNING. Frames already existing in the directory will be deleted.]**',                                        
                                     step=1,
                                     key='extract_frames_slider' 
                                     )
                         if EXTRACT_ONE_FRAME_X_SECONDS is not None:
-                            STATION_DATA['BENTHOS_INTERPRETATION']['EXTRACT_ONE_FRAME_X_SECONDS'] = int(EXTRACT_ONE_FRAME_X_SECONDS)  
+                            STATION_DATA['SEAFLOOR_INTERPRETATION']['EXTRACT_ONE_FRAME_X_SECONDS'] = int(EXTRACT_ONE_FRAME_X_SECONDS)  
                             
                         if confirm_btn.button(label='extract frames', help='Extract frames from the video.'):
                             STATION_DIRPATH = os.path.dirname(STATION_FILEPATH)
@@ -1331,8 +1343,8 @@ def show_video_processing(
                                 if FRAMES is not None and len(FRAMES)>10:
                                     RANDOM_FRAMES = select_random_frames(frames=FRAMES, num_frames=10)
                                     
-                                    STATION_DATA['BENTHOS_INTERPRETATION']['FRAMES_DIRPATH'] = FRAMES_DIRPATH
-                                    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
+                                    STATION_DATA['SEAFLOOR_INTERPRETATION']['FRAMES_DIRPATH'] = FRAMES_DIRPATH
+                                    STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'] = RANDOM_FRAMES
 
                                     frames_message_01.success(f'Frames extracted successfully. **Total frames extracted: {len(FRAMES)}**')
                                     frames_message_02.success(f'**Done!!! {len(RANDOM_FRAMES)} random frames** selected successfully. **Refresh the app to continue.**')
@@ -1368,7 +1380,7 @@ def natural_sort_keys(dictionary):
 
 
 def stations_selector_box(STATIONS_AVAILABLE:dict, index:int = 0, format_func:callable = lambda x:f'{x}' ):
-    # lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('BENTHOS_INTERPRETATION', {}).get(x, {}) else x,
+    # lambda x: f'{x} {suffix}' if 'FRAMES' in SURVEY_DATA.get('SEAFLOOR_INTERPRETATION', {}).get(x, {}) else x,
     if STATIONS_AVAILABLE is not None and len(STATIONS_AVAILABLE)>0:        
         STATIONS_OPTIONS = natural_sort_keys(STATIONS_AVAILABLE)
 
@@ -1377,7 +1389,7 @@ def stations_selector_box(STATIONS_AVAILABLE:dict, index:int = 0, format_func:ca
                         options=STATIONS_OPTIONS, 
                         index=index,
                         key='station_selector',
-                        help='Select a station for benthic interpretation.',
+                        help='Select a station for seafloor interpretation.',
                         format_func=format_func)
                     
         STATION_FILEPATH = STATIONS_AVAILABLE[STATION_NAME]
@@ -1534,7 +1546,7 @@ try:
         survey_data_editor(SURVEY_DATA, SURVEY_DATASTORE, SURVEY_FILEPATH)
 
     if VIDEO_NAME is not None:   # STATION_DATA is not None and len(STATION_DATA)>0:
-        if 'RANDOM_FRAMES' not in STATION_DATA['BENTHOS_INTERPRETATION']:
+        if 'RANDOM_FRAMES' not in STATION_DATA['SEAFLOOR_INTERPRETATION']:
             show_video_processing(
                 SURVEY_NAME = SURVEY_NAME,
                 STATION_NAME = STATION_NAME,

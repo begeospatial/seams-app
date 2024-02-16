@@ -64,8 +64,8 @@ def init_session_state(default_data_subdirectory_name:str ='data', reset_session
         st.session_state['APP']['TAXONS'] = {}        
     if 'REPORTS' not in st.session_state['APP']:
         st.session_state['APP']['REPORTS'] = {}    
-    if 'BENTHOS_INTERPRETATION' not in st.session_state['APP']:
-        st.session_state['APP']['BENTHOS_INTERPRETATION'] = {}
+    if 'SEAFLOOR_INTERPRETATION' not in st.session_state['APP']:
+        st.session_state['APP']['SEAFLOOR_INTERPRETATION'] = {}
 
     # --------------------
     APP_DIRPATH = get_script_path()
@@ -177,7 +177,7 @@ def build_sidebar():
     The function performs the following main tasks:
     - Loads logos from a predefined path and displays the main logo on the sidebar.
     - Defines paths for the application's services and related directories.
-    - Creates an expandable section titled 'SEAMS - PLAN SUBSIM' containing details about the application.
+    - Creates an expandable section titled 'SEAMS - SUBSIM' containing details about the application.
     - Provides a refresh button that clears all data caches and reruns the application.
     - Loads a list of available services (activities) from a specified YAML file and constructs a clickable menu for these services.
 
@@ -202,13 +202,13 @@ def build_sidebar():
     SERVICES_FILEPATH = os.path.join(get_script_path(),'app_services.yaml')
     SERVICES_DIRPATH = os.path.join(get_script_path(),'services/')
     
-    about_sidebar_expander = st.sidebar.expander(label='**SEAMS** - PLAN SUBSIM')
+    about_sidebar_expander = st.sidebar.expander(label='**SEAMS** - SUBSIM')
     
     with about_sidebar_expander:
         st.title('SEAMS')
         st.subheader('SEafloor Annotation and Mapping Support')
         st.markdown(
-            """ *[PLAN-SUBSIM](https://oceandatafactory.se/plan-subsim/)*
+            """ *[SUBSIM](https://oceandatafactory.se/plan-subsim/)*
             a national implementation of a PLatform for ANalysis of SUBSea IMages.
             """)
         if LOGO_ODF_URL: st.image(LOGO_ODF_URL)

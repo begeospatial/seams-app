@@ -76,12 +76,12 @@ def show_advanced_options()->dict:
     
 
         return DOTPOINTS_ADVANCED_OPTIONS
-        
+      
 
 def build_header():
     hcol1, hcol2 = st.columns([3,1])
     with hcol1:
-        st.subheader("SEAMS | benthos interpretation")
+        st.subheader("SEAMS | Seafloor interpretation")
     with hcol2:
         frame_info = st.empty()            
     return frame_info
@@ -96,12 +96,12 @@ def station_results(STATION_DATA, taxons:list = [], substrates:list = []):
     df = []    
     summary = {}
     STATION_NAME = STATION_DATA['METADATA']['siteName']
-    SURVEY_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['SURVEY_NAME']
-    VIDEO_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['VIDEO_NAME']
-    STATION_DIRPATH = os.path.dirname(STATION_DATA['BENTHOS_INTERPRETATION']['STATION_FILEPATH'])
+    SURVEY_NAME = STATION_DATA['SEAFLOOR_INTERPRETATION']['SURVEY_NAME']
+    VIDEO_NAME = STATION_DATA['SEAFLOOR_INTERPRETATION']['VIDEO_NAME']
+    STATION_DIRPATH = os.path.dirname(STATION_DATA['SEAFLOOR_INTERPRETATION']['STATION_FILEPATH'])
 
-    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
-        FRAME_INTERPRETATION = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+    for FRAME_NAME in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES']:
+        FRAME_INTERPRETATION = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
 
         METADATA = FRAME_INTERPRETATION.get('METADATA', {})
         if len(METADATA) > 0:            
@@ -197,7 +197,7 @@ def frame_results(
         FRAME_NAME:str,        
         key:str= None):
     
-    FRAME_INTERPRETATION = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('RANDOM_FRAMES', {}).get(FRAME_NAME, {}).get('INTERPRETATION', {})
+    FRAME_INTERPRETATION = STATION_DATA.get('SEAFLOOR_INTERPRETATION', {}).get('RANDOM_FRAMES', {}).get(FRAME_NAME, {}).get('INTERPRETATION', {})
     METADATA = FRAME_INTERPRETATION.get('METADATA', {})
     if len(METADATA) > 0:            
         if len(FRAME_INTERPRETATION['DOTPOINTS']) > 0:
@@ -248,7 +248,7 @@ def benthos_main_menu(
     
     RANDOM_FRAMES_INDEX_DICT = {i+1:k for i, k in enumerate(RANDOM_FRAMES.keys())}
 
-    with st.sidebar.expander(label='**Benthos interpretation**', expanded=True):
+    with st.sidebar.expander(label='**Seafloor interpretation**', expanded=True):
         
         st.markdown('##### Survey')
         st.subheader(f'**:blue[{SURVEY_NAME}]**')
@@ -702,7 +702,7 @@ def show_modified_image(image, centroids_dict:dict, show_dotpoints_overlay:bool=
     
 
 def frame_to_station_taxons_dictionary(frame_name:str, STATION_DATA:str, taxons_results:dict)->dict:
-    OUTPUT_DOTPOINT = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+    OUTPUT_DOTPOINT = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
 
     for taxon, dotpoints in taxons_results.items():
         for dotpoint, value in dotpoints.items():
@@ -717,7 +717,7 @@ def frame_to_station_taxons_dictionary(frame_name:str, STATION_DATA:str, taxons_
 
 def station_to_frame_taxons_dictionary(frame_name:str, STATION_DATA:str)->dict:
     taxons_results = {}
-    dotpoints_data = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+    dotpoints_data = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
     for dotpoint, dotpoint_data in dotpoints_data.items():
         taxons_data = dotpoint_data.get('TAXONS', {})
         for taxon, value in taxons_data.items():
@@ -729,7 +729,7 @@ def station_to_frame_taxons_dictionary(frame_name:str, STATION_DATA:str)->dict:
 
 
 def frame_to_station_substrates_dictionary(frame_name:str, STATION_DATA:str, substrates_results:dict)->dict:
-    OUTPUT_DOTPOINT = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+    OUTPUT_DOTPOINT = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
 
     for _, dotpoints in substrates_results.items():
         for dotpoint, substrate in dotpoints.items():
@@ -742,7 +742,7 @@ def frame_to_station_substrates_dictionary(frame_name:str, STATION_DATA:str, sub
 
 def station_to_frame_substrates_dictionary(frame_name:str, STATION_DATA:str)->dict:
     substrates_results = {'0': {}}
-    dotpoints_data = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
+    dotpoints_data = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][frame_name]['INTERPRETATION']['DOTPOINTS']
     for dotpoint, dotpoint_data in dotpoints_data.items():
         substrate = dotpoint_data.get('SUBSTRATE', None)
         substrates_results['0'][dotpoint] = substrate
@@ -763,8 +763,8 @@ def create_table(STATION_DATA:dict):
     # Get the list of taxons
     taxons = set()
 
-    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
-        for dotpoint in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].values():
+    for FRAME_NAME in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES']:
+        for dotpoint in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].values():
             substrates.add(dotpoint['SUBSTRATE'])
             taxons.update(dotpoint['TAXONS'].keys())
 
@@ -773,8 +773,8 @@ def create_table(STATION_DATA:dict):
 
     # Create the table rows
     table_rows = []
-    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
-        for dotpoint_id, dotpoint in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].items():
+    for FRAME_NAME in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES']:
+        for dotpoint_id, dotpoint in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'].items():
             row = [dotpoint_id, dotpoint['SUBSTRATE']] + [dotpoint['TAXONS'].get(taxon, False) for taxon in taxons]
             table_rows.append(row)
 
@@ -785,7 +785,7 @@ def create_table(STATION_DATA:dict):
 
 
 def get_station_interpreted_taxons_subtrates(STATION_DATA:dict)->dict:
-    RANDOM_FRAMES = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']
+    RANDOM_FRAMES = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES']
 
     station = {}
     
@@ -803,7 +803,7 @@ def get_station_interpreted_taxons_subtrates(STATION_DATA:dict)->dict:
 
 def show_station_progress(STATION_DATA:dict):
 
-    STATION_NAME = STATION_DATA['BENTHOS_INTERPRETATION']['STATION_NAME']
+    STATION_NAME = STATION_DATA['SEAFLOOR_INTERPRETATION']['STATION_NAME']
     frames_taxons_interpreted = {}
     frames_substrates_interpreted = {}
     station_seafloor = get_station_interpreted_taxons_subtrates(STATION_DATA)
@@ -826,9 +826,9 @@ def create_station_summary(STATION_DATA:dict):
     export_cols = {}
     core_columns = {'SURVEY_NAME':str, 'STATION_NAME':str, 'VIDEO_NAME':str, 'FRAME_NAME':str, 'DOTPOINT_ID':str, 'frame_x_coord':int, 'frame_y_coord':int} 
     
-    for FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
+    for FRAME_NAME in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES']:
             
-        result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'] 
+        result_dict = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'] 
         
         for p in result_dict:
             result_dict[p]['FRAME_NAME'] = FRAME_NAME
@@ -907,14 +907,14 @@ try:
 
         st.session_state['CURRENT']['STATION_DATA'] = STATION_DATA        
         
-        VIDEO_NAME = STATION_DATA.get('BENTHOS_INTERPRETATION', {}).get('VIDEO_NAME', None)
+        VIDEO_NAME = STATION_DATA.get('SEAFLOOR_INTERPRETATION', {}).get('VIDEO_NAME', None)
         
         # --------------------------------------------------------------------    
         frame_info = build_header()
         
                 
         if STATION_DATA is not None and len(STATION_DATA) > 0:
-            RANDOM_FRAMES = STATION_DATA.get('BENTHOS_INTERPRETATION').get('RANDOM_FRAMES', {})
+            RANDOM_FRAMES = STATION_DATA.get('SEAFLOOR_INTERPRETATION').get('RANDOM_FRAMES', {})
 
             if VIDEO_NAME is None:
                 st.warning('Station with incompatible video selected or survey not initialized properly. Ensure the selected station and available video has the suffix **(***)**. Go to **Menu>Survey initialization** to initialize the survey.')
@@ -1154,7 +1154,7 @@ try:
                 with tfcol1:
                     st.markdown('**General in frame**')
                 
-                    FRAME_INTERPRETATION = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
+                    FRAME_INTERPRETATION = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']
 
                     OTHER_COVERS = [i for i in FRAME_INTERPRETATION.get('GENERAL_IN_FRAME', {}).keys()]
                     
@@ -1187,9 +1187,9 @@ try:
 
                 show_station_progress(STATION_DATA=STATION_DATA)
                 
-                #for p in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']:
-                #    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_x_coord'] = centroids_dict[int(p)].x
-                #    STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_y_coord'] = centroids_dict[int(p)].y
+                #for p in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS']:
+                #    STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_x_coord'] = centroids_dict[int(p)].x
+                #    STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][FRAME_NAME]['INTERPRETATION']['DOTPOINTS'][p]['frame_y_coord'] = centroids_dict[int(p)].y
                 
                 st.markdown(f'**Station summary**')
                             
@@ -1200,8 +1200,8 @@ try:
                 
                 core_columns = {'SURVEY_NAME':str, 'STATION_NAME':str, 'VIDEO_NAME':str, 'FRAME_NAME':str, 'DOTPOINT_ID':str, 'frame_x_coord':int, 'frame_y_coord':int} 
                 
-                for _FRAME_NAME in STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES']:
-                    result_dict = STATION_DATA['BENTHOS_INTERPRETATION']['RANDOM_FRAMES'][_FRAME_NAME]['INTERPRETATION']['DOTPOINTS']
+                for _FRAME_NAME in STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES']:
+                    result_dict = STATION_DATA['SEAFLOOR_INTERPRETATION']['RANDOM_FRAMES'][_FRAME_NAME]['INTERPRETATION']['DOTPOINTS']
                     for p in result_dict:
                         result_dict[p]['DOTPOINT_ID'] = p
                         result_dict[p]['FRAME_NAME'] = _FRAME_NAME
@@ -1245,5 +1245,5 @@ except Exception as e:
     if trace_error is None:
         trace_error= ''
     else:        
-        st.error(f'**Benthos interpretation exception:** {trace_error} {e} | **Refresh the app and try again**')
+        st.error(f'**Seafloor interpretation exception:** {trace_error} {e} | **Refresh the app and try again**')
     

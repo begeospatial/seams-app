@@ -9,7 +9,7 @@
   url: "stations_init.py"
 
 - 
-  name: "(2) Benthos interpretation"
-  description: "Benthos image interpretation"
-  url: "benthos_interpretation.py"
+  name: "(2) Seafloor interpretation"
+  description: "Seafloor image interpretation"
+  url: "seafloor_interpretation.py"
   
